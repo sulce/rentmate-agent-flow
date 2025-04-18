@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { useNavigate } from "react-router-dom";
@@ -73,6 +74,11 @@ const Dashboard = () => {
 
   const viewApplication = (id: string) => {
     navigate(`/applications/${id}`);
+  };
+
+  // Add the missing viewApplicationLink function
+  const viewApplicationLink = () => {
+    navigate(`/apply/${applicationLinkId}`);
   };
 
   const handleQuickAction = (action: string) => {
