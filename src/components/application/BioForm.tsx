@@ -15,7 +15,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Popover,
   PopoverContent,
@@ -24,11 +23,11 @@ import {
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import BioPrompts from "./BioPrompts";
 
 const bioFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  bio: z.string().min(10, "Please provide a brief bio (minimum 10 characters)"),
   moveInDate: z.date({
     required_error: "Move-in date is required",
   }),
@@ -37,19 +36,19 @@ const bioFormSchema = z.object({
 type BioFormValues = z.infer<typeof bioFormSchema>;
 
 interface BioFormProps {
-  onSubmit: (data: BioFormValues) => void;
+  onSubmit: (data: BioFormValues & { prompts: any }) => void;
   initialData?: Partial<BioFormValues>;
 }
 
 export default function BioForm({ onSubmit, initialData }: BioFormProps) {
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [promptsData, setPromptsData] = useState<any>(null);
 
   const form = useForm<BioFormValues>({
     resolver: zodResolver(bioFormSchema),
     defaultValues: {
       firstName: initialData?.firstName || "",
       lastName: initialData?.lastName || "",
-      bio: initialData?.bio || "",
       moveInDate: initialData?.moveInDate || new Date(),
     },
   });
@@ -63,6 +62,13 @@ export default function BioForm({ onSubmit, initialData }: BioFormProps) {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleSubmit = (data: BioFormValues) => {
+    onSubmit({
+      ...data,
+      prompts: promptsData,
+    });
   };
 
   return (
@@ -91,7 +97,7 @@ export default function BioForm({ onSubmit, initialData }: BioFormProps) {
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <FormField
               control={form.control}
@@ -121,24 +127,6 @@ export default function BioForm({ onSubmit, initialData }: BioFormProps) {
               )}
             />
           </div>
-
-          <FormField
-            control={form.control}
-            name="bio"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>About You</FormLabel>
-                <FormControl>
-                  <Textarea
-                    placeholder="Tell us about yourself, your hobbies, pets, occupation, etc."
-                    className="resize-none h-32"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
 
           <FormField
             control={form.control}
@@ -181,7 +169,12 @@ export default function BioForm({ onSubmit, initialData }: BioFormProps) {
             )}
           />
 
-          <Button type="submit" className="w-full">
+          <div className="border-t border-gray-200 pt-6">
+            <h3 className="text-lg font-semibold mb-4">Tell Us About Yourself</h3>
+            <BioPrompts onPromptsSubmit={setPromptsData} />
+          </div>
+
+          <Button type="submit" className="w-full" disabled={!promptsData}>
             Save and Continue
           </Button>
         </form>

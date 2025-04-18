@@ -1,6 +1,6 @@
-
 import { useState } from "react";
 import Layout from "@/components/layout/Layout";
+import { useNavigate } from "react-router-dom";
 import { 
   Card, 
   CardContent, 
@@ -48,6 +48,7 @@ const applicationsData = [
 const Dashboard = () => {
   const [applicationLinkId, setApplicationLinkId] = useState("a1b2c3d4e5f6");
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const getFullApplicationLink = () => {
     return `${window.location.origin}/apply/${applicationLinkId}`;
@@ -62,7 +63,6 @@ const Dashboard = () => {
   };
 
   const generateNewLink = () => {
-    // In a real app, we would call an API to generate a new link
     const newLinkId = Math.random().toString(36).substring(2, 10);
     setApplicationLinkId(newLinkId);
     toast({
@@ -71,8 +71,22 @@ const Dashboard = () => {
     });
   };
 
-  const viewApplicationLink = () => {
-    window.open(getFullApplicationLink(), "_blank");
+  const viewApplication = (id: string) => {
+    navigate(`/applications/${id}`);
+  };
+
+  const handleQuickAction = (action: string) => {
+    switch (action) {
+      case "addTenant":
+        navigate("/apply");
+        break;
+      case "customizePortal":
+        navigate("/settings");
+        break;
+      case "updateProfile":
+        navigate("/profile");
+        break;
+    }
   };
 
   return (
@@ -152,15 +166,27 @@ const Dashboard = () => {
                 <CardTitle>Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => handleQuickAction("addTenant")}
+                >
                   <UserPlus className="mr-2 h-4 w-4" />
                   Add New Tenant
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => handleQuickAction("customizePortal")}
+                >
                   <Settings className="mr-2 h-4 w-4" />
                   Customize Portal
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => handleQuickAction("updateProfile")}
+                >
                   <User className="mr-2 h-4 w-4" />
                   Update Profile
                 </Button>
@@ -209,7 +235,11 @@ const Dashboard = () => {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => viewApplication(application.id)}
+                      >
                         <ExternalLink className="h-4 w-4" />
                         <span className="sr-only">View</span>
                       </Button>
