@@ -46,13 +46,15 @@ const applicationsData = [
 ];
 
 const Dashboard = () => {
-  const [applicationLink, setApplicationLink] = useState(
-    "https://rentmate.app/apply/a1b2c3d4e5f6"
-  );
+  const [applicationLinkId, setApplicationLinkId] = useState("a1b2c3d4e5f6");
   const { toast } = useToast();
 
+  const getFullApplicationLink = () => {
+    return `${window.location.origin}/apply/${applicationLinkId}`;
+  };
+
   const copyLink = () => {
-    navigator.clipboard.writeText(applicationLink);
+    navigator.clipboard.writeText(getFullApplicationLink());
     toast({
       title: "Link copied",
       description: "Application link copied to clipboard",
@@ -61,11 +63,16 @@ const Dashboard = () => {
 
   const generateNewLink = () => {
     // In a real app, we would call an API to generate a new link
-    setApplicationLink(`https://rentmate.app/apply/${Math.random().toString(36).substring(2, 10)}`);
+    const newLinkId = Math.random().toString(36).substring(2, 10);
+    setApplicationLinkId(newLinkId);
     toast({
       title: "New link generated",
       description: "A new application link has been generated",
     });
+  };
+
+  const viewApplicationLink = () => {
+    window.open(getFullApplicationLink(), "_blank");
   };
 
   return (
@@ -121,7 +128,7 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  <Input value={applicationLink} readOnly className="flex-1" />
+                  <Input value={getFullApplicationLink()} readOnly className="flex-1" />
                   <Button onClick={copyLink} className="flex-shrink-0">
                     <Copy className="h-4 w-4 mr-2" />
                     Copy
@@ -129,6 +136,10 @@ const Dashboard = () => {
                   <Button variant="outline" onClick={generateNewLink} className="flex-shrink-0">
                     <FilePlus className="h-4 w-4 mr-2" />
                     Generate New Link
+                  </Button>
+                  <Button variant="secondary" onClick={viewApplicationLink} className="flex-shrink-0">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View
                   </Button>
                 </div>
               </CardContent>
