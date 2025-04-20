@@ -1,9 +1,9 @@
-
 import { ReactNode, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useApplication } from "@/hooks/useApplication";
 
 interface ApplicationLayoutProps {
   children: ReactNode;
@@ -24,18 +24,29 @@ export default function ApplicationLayout({
 }: ApplicationLayoutProps) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  const { applicationId } = useParams();
+  const { updateApplication } = useApplication(applicationId);
 
-  const handleSaveProgress = () => {
-    setSaving(true);
-    
-    // Simulate saving progress
-    setTimeout(() => {
-      setSaving(false);
+  const handleSaveProgress = async () => {
+    try {
+      setSaving(true);
+      await updateApplication({
+        last_saved_step: step,
+        last_saved_at: new Date().toISOString(),
+      });
       toast({
         title: "Progress Saved",
         description: "You can continue your application later.",
       });
-    }, 1000);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save progress",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

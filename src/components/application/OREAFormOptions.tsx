@@ -1,9 +1,10 @@
-
 import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FileUp, FilePen } from "lucide-react";
+import { useApplication } from "@/hooks/useApplication";
+import { useToast } from "@/hooks/use-toast";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,15 +25,34 @@ interface OREAFormOptionsProps {
 
 export default function OREAFormOptions({ onSubmit }: OREAFormOptionsProps) {
   const [fileName, setFileName] = useState<string | null>(null);
+  const { uploadDocument, isLoading, error } = useApplication();
+  const { toast } = useToast();
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
   });
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      form.setValue("oreaForm", file);
-      setFileName(file.name);
+      try {
+        form.setValue("oreaForm", file);
+        setFileName(file.name);
+
+        // Upload the file immediately when selected
+        await uploadDocument(file, "OREA_FORM");
+        toast({
+          title: "Success",
+          description: "OREA form uploaded successfully.",
+        });
+        onSubmit({ oreaForm: file });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to upload OREA form",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -47,7 +67,7 @@ export default function OREAFormOptions({ onSubmit }: OREAFormOptionsProps) {
         <Card>
           <CardContent className="pt-6">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form className="space-y-6">
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                   <FileUp className="mx-auto h-12 w-12 text-gray-400" />
                   <p className="mt-1 text-sm text-gray-600">
@@ -56,7 +76,7 @@ export default function OREAFormOptions({ onSubmit }: OREAFormOptionsProps) {
                   <p className="mt-1 text-xs text-gray-500">
                     Supported formats: PDF
                   </p>
-                  
+
                   <div className="mt-4">
                     <Input
                       id="orea-form"
@@ -64,18 +84,20 @@ export default function OREAFormOptions({ onSubmit }: OREAFormOptionsProps) {
                       accept=".pdf"
                       onChange={handleFileChange}
                       className="hidden"
+                      disabled={isLoading}
                     />
                     <label htmlFor="orea-form">
                       <Button
                         type="button"
                         variant="outline"
                         className="cursor-pointer"
+                        disabled={isLoading}
                       >
-                        Select File
+                        {isLoading ? "Uploading..." : "Select File"}
                       </Button>
                     </label>
                   </div>
-                  
+
                   {fileName && (
                     <div className="mt-4 p-2 bg-gray-50 rounded flex items-center justify-between">
                       <span className="text-sm text-gray-600 truncate max-w-xs">
@@ -94,10 +116,6 @@ export default function OREAFormOptions({ onSubmit }: OREAFormOptionsProps) {
                     </div>
                   )}
                 </div>
-
-                <Button type="submit" className="w-full" disabled={!fileName}>
-                  Save and Continue
-                </Button>
               </form>
             </Form>
           </CardContent>

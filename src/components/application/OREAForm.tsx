@@ -1,5 +1,6 @@
-
 import { useState } from "react";
+import { useApplication } from "@/hooks/useApplication";
+import { useToast } from "@/hooks/use-toast";
 import OREAFormOptions from "./OREAFormOptions";
 
 interface OREAFormProps {
@@ -8,10 +9,25 @@ interface OREAFormProps {
 
 export default function OREAForm({ onSubmit }: OREAFormProps) {
   const [formData, setFormData] = useState<any>(null);
+  const { updateOREAForm, isLoading, error } = useApplication();
+  const { toast } = useToast();
 
-  const handleFormSubmit = (data: any) => {
-    setFormData(data);
-    onSubmit(data);
+  const handleFormSubmit = async (data: any) => {
+    try {
+      setFormData(data);
+      await updateOREAForm(data);
+      toast({
+        title: "Success",
+        description: "OREA form data saved successfully.",
+      });
+      onSubmit(data);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save OREA form data",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

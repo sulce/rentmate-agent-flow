@@ -1,9 +1,9 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
 import {
@@ -32,8 +32,8 @@ const signupSchema = z.object({
 type SignupFormValues = z.infer<typeof signupSchema>;
 
 const SignUp = () => {
-  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { registerAgent, isLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -49,17 +49,26 @@ const SignUp = () => {
   });
 
   const onSubmit = async (data: SignupFormValues) => {
-    setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await registerAgent({
+        fullName: data.fullName,
+        companyName: data.companyName,
+        email: data.email,
+        password: data.password,
+      });
+
       toast({
         title: "Account created successfully",
         description: "Welcome to RentMate!",
       });
       navigate("/dashboard");
-    }, 1500);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create account",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -92,6 +101,7 @@ const SignUp = () => {
                     <Input
                       placeholder="John Doe"
                       {...field}
+                      disabled={isLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -109,6 +119,7 @@ const SignUp = () => {
                     <Input
                       placeholder="ABC Real Estate"
                       {...field}
+                      disabled={isLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -127,6 +138,7 @@ const SignUp = () => {
                       type="email"
                       placeholder="name@example.com"
                       {...field}
+                      disabled={isLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -146,6 +158,7 @@ const SignUp = () => {
                         type={showPassword ? "text" : "password"}
                         placeholder="••••••••"
                         {...field}
+                        disabled={isLoading}
                       />
                       <Button
                         type="button"
@@ -153,6 +166,7 @@ const SignUp = () => {
                         size="sm"
                         className="absolute right-2 top-1/2 transform -translate-y-1/2"
                         onClick={() => setShowPassword(!showPassword)}
+                        disabled={isLoading}
                       >
                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </Button>
@@ -174,6 +188,7 @@ const SignUp = () => {
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
                       {...field}
+                      disabled={isLoading}
                     />
                   </FormControl>
                   <FormMessage />

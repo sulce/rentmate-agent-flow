@@ -1,16 +1,31 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
-
-const data = [
-  { week: "Week 1", applications: 24 },
-  { week: "Week 2", applications: 18 },
-  { week: "Week 3", applications: 32 },
-  { week: "Week 4", applications: 27 },
-];
+import { useAnalytics } from "@/hooks/useAnalytics";
+import { useEffect } from "react";
 
 export const ApplicationsChart = () => {
+  const { dashboardData, isLoading, fetchDashboardData } = useAnalytics();
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  if (isLoading || !dashboardData) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Weekly Applications</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px] flex items-center justify-center">
+            Loading...
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -20,17 +35,17 @@ export const ApplicationsChart = () => {
         <div className="h-[300px]">
           <ChartContainer
             config={{
-              applications: {
+              count: {
                 color: "hsl(var(--primary))",
               },
             }}
           >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data}>
+              <BarChart data={dashboardData.weeklyBreakdown}>
                 <XAxis dataKey="week" />
                 <YAxis />
                 <ChartTooltip />
-                <Bar dataKey="applications" />
+                <Bar dataKey="count" />
               </BarChart>
             </ResponsiveContainer>
           </ChartContainer>

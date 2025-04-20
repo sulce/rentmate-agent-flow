@@ -1,13 +1,13 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
 	darkMode: ["class"],
 	content: [
-		"./pages/**/*.{ts,tsx}",
-		"./components/**/*.{ts,tsx}",
-		"./app/**/*.{ts,tsx}",
+		"./src/pages/**/*.{ts,tsx}",
+		"./src/components/**/*.{ts,tsx}",
+		"./src/app/**/*.{ts,tsx}",
 		"./src/**/*.{ts,tsx}",
+		"./index.html"
 	],
 	prefix: "",
 	theme: {
@@ -53,23 +53,10 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
-				sidebar: {
-					DEFAULT: 'hsl(var(--sidebar-background))',
-					foreground: 'hsl(var(--sidebar-foreground))',
-					primary: 'hsl(var(--sidebar-primary))',
-					'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-					accent: 'hsl(var(--sidebar-accent))',
-					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
-					border: 'hsl(var(--sidebar-border))',
-					ring: 'hsl(var(--sidebar-ring))'
-				},
-				rentmate: {
-					primary: '#3B82F6', // Blue
-					secondary: '#0EA5E9', // Sky blue
-					accent: '#10B981', // Green
-					light: '#F0F9FF', // Light blue
-					dark: '#1E3A8A', // Dark blue
-				}
+				'rentmate-primary': '#2563eb',
+				'rentmate-secondary': '#1e40af',
+				'rentmate-accent': '#3b82f6',
+				'rentmate-light': '#f8fafc',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

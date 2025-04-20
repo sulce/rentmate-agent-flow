@@ -1,40 +1,34 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Copy, FilePlus, ExternalLink } from "lucide-react";
+import { Copy, Share2 } from "lucide-react";
+import { useApplication } from "@/hooks/useApplication";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
 
 export const ApplicationLinkShare = () => {
-  const [applicationLinkId, setApplicationLinkId] = useState("a1b2c3d4e5f6");
+  const [isLoading, setIsLoading] = useState(false);
+  const { generateApplicationLink } = useApplication();
   const { toast } = useToast();
-  const navigate = useNavigate();
 
-  const getFullApplicationLink = () => {
-    return `${window.location.origin}/apply/${applicationLinkId}`;
-  };
-
-  const copyLink = () => {
-    navigator.clipboard.writeText(getFullApplicationLink());
-    toast({
-      title: "Link copied",
-      description: "Application link copied to clipboard",
-    });
-  };
-
-  const generateNewLink = () => {
-    const newLinkId = Math.random().toString(36).substring(2, 10);
-    setApplicationLinkId(newLinkId);
-    toast({
-      title: "New link generated",
-      description: "A new application link has been generated",
-    });
-  };
-
-  const viewApplicationLink = () => {
-    navigate(`/apply/${applicationLinkId}`);
+  const handleGenerateLink = async () => {
+    try {
+      setIsLoading(true);
+      const response = await generateApplicationLink();
+      await navigator.clipboard.writeText(response.url);
+      toast({
+        title: "Success",
+        description: "Application link copied to clipboard",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate application link",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -42,23 +36,24 @@ export const ApplicationLinkShare = () => {
       <CardHeader>
         <CardTitle>Share Application Link</CardTitle>
         <CardDescription>
-          Send this link to prospective tenants to fill out the rental application
+          Generate and share a link for applicants to start their rental application
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-wrap gap-2">
-          <Input value={getFullApplicationLink()} readOnly className="flex-1" />
-          <Button onClick={copyLink} className="flex-shrink-0">
-            <Copy className="h-4 w-4 mr-2" />
-            Copy
-          </Button>
-          <Button variant="outline" onClick={generateNewLink} className="flex-shrink-0">
-            <FilePlus className="h-4 w-4 mr-2" />
-            Generate New Link
-          </Button>
-          <Button variant="secondary" onClick={viewApplicationLink} className="flex-shrink-0">
-            <ExternalLink className="h-4 w-4 mr-2" />
-            View
+        <div className="flex space-x-2">
+          <Button
+            onClick={handleGenerateLink}
+            disabled={isLoading}
+            className="flex-1"
+          >
+            {isLoading ? (
+              "Generating..."
+            ) : (
+              <>
+                <Share2 className="mr-2 h-4 w-4" />
+                Generate Link
+              </>
+            )}
           </Button>
         </div>
       </CardContent>

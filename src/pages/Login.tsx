@@ -1,10 +1,10 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 import {
   Form,
@@ -26,10 +26,10 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 const Login = () => {
-  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { login, isLoading, error } = useAuth();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -40,17 +40,20 @@ const Login = () => {
   });
 
   const onSubmit = async (data: LoginFormValues) => {
-    setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await login({ email: data.email, password: data.password });
       toast({
         title: "Login successful",
-        description: "Welcome back to RentMate!",
+        description: "Welcome back to RentFlow!",
       });
       navigate("/dashboard");
-    }, 1500);
+    } catch (error) {
+      toast({
+        title: "Login failed",
+        description: error instanceof Error ? error.message : "An error occurred during login",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -58,7 +61,7 @@ const Login = () => {
       <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md">
         <div className="text-center">
           <Link to="/" className="text-2xl font-bold text-rentmate-primary">
-            RentMate
+            RentFlow
           </Link>
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
             Login to your account
@@ -84,6 +87,7 @@ const Login = () => {
                       type="email"
                       placeholder="name@example.com"
                       {...field}
+                      disabled={isLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -103,6 +107,7 @@ const Login = () => {
                         type={showPassword ? "text" : "password"}
                         placeholder="••••••••"
                         {...field}
+                        disabled={isLoading}
                       />
                       <Button
                         type="button"
@@ -110,6 +115,7 @@ const Login = () => {
                         size="sm"
                         className="absolute right-2 top-1/2 transform -translate-y-1/2"
                         onClick={() => setShowPassword(!showPassword)}
+                        disabled={isLoading}
                       >
                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </Button>

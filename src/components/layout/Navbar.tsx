@@ -1,18 +1,59 @@
-
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/api/apiClient";
 
 export default function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
-    // In a real app, we would check if the user is logged in here
-    // For demo purposes, we'll simulate not being logged in
-    setIsLoggedIn(false);
+    const checkAuth = async () => {
+      try {
+        const token = apiClient.getToken();
+        if (token) {
+          // Verify token is still valid
+          await apiClient.getApplications();
+          setIsLoggedIn(true);
+        }
+      } catch (error) {
+        // Token is invalid or expired
+        apiClient.setToken(null);
+        setIsLoggedIn(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      setIsLoading(true);
+      await apiClient.logout();
+      apiClient.setToken(null);
+      setIsLoggedIn(false);
+      navigate("/");
+      toast({
+        title: "Success",
+        description: "You have been logged out successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to log out",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <nav className="bg-white shadow-sm border-b">
@@ -34,26 +75,33 @@ export default function Navbar() {
             <Link to="/about" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-rentmate-primary">
               About
             </Link>
-            {isLoggedIn ? (
-              <>
-                <Link to="/dashboard" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-rentmate-primary">
-                  Dashboard
-                </Link>
-                <Button variant="outline" className="ml-2">
-                  Log Out
-                </Button>
-              </>
-            ) : (
-              <>
-                <Link to="/login">
-                  <Button variant="outline" className="ml-2">
-                    Log In
+            {!isLoading && (
+              isLoggedIn ? (
+                <>
+                  <Link to="/dashboard" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-rentmate-primary">
+                    Dashboard
+                  </Link>
+                  <Button
+                    variant="outline"
+                    className="ml-2"
+                    onClick={handleLogout}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Logging out..." : "Log Out"}
                   </Button>
-                </Link>
-                <Link to="/signup">
-                  <Button className="ml-2">Sign Up</Button>
-                </Link>
-              </>
+                </>
+              ) : (
+                <>
+                  <Link to="/login">
+                    <Button variant="outline" className="ml-2">
+                      Log In
+                    </Button>
+                  </Link>
+                  <Link to="/signup">
+                    <Button className="ml-2">Sign Up</Button>
+                  </Link>
+                </>
+              )
             )}
           </div>
 
@@ -91,30 +139,37 @@ export default function Navbar() {
             >
               About
             </Link>
-            {isLoggedIn ? (
-              <>
-                <Link
-                  to="/dashboard"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-rentmate-primary"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Dashboard
-                </Link>
-                <Button variant="outline" className="w-full mt-2">
-                  Log Out
-                </Button>
-              </>
-            ) : (
-              <>
-                <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="outline" className="w-full mt-2">
-                    Log In
+            {!isLoading && (
+              isLoggedIn ? (
+                <>
+                  <Link
+                    to="/dashboard"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-rentmate-primary"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Dashboard
+                  </Link>
+                  <Button
+                    variant="outline"
+                    className="w-full mt-2"
+                    onClick={handleLogout}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Logging out..." : "Log Out"}
                   </Button>
-                </Link>
-                <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="w-full mt-2">Sign Up</Button>
-                </Link>
-              </>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="outline" className="w-full mt-2">
+                      Log In
+                    </Button>
+                  </Link>
+                  <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>
+                    <Button className="w-full mt-2">Sign Up</Button>
+                  </Link>
+                </>
+              )
             )}
           </div>
         </div>

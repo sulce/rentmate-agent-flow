@@ -1,9 +1,10 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { FileText, Upload, X } from "lucide-react";
+import { useApplication } from "@/hooks/useApplication";
+import { useToast } from "@/hooks/use-toast";
 
 import {
   Form,
@@ -44,9 +45,14 @@ type DocumentValues = z.infer<typeof documentSchema>;
 
 interface DocumentUploadProps {
   onSubmit: (data: any) => void;
+  initialData?: Document[];
 }
 
-export default function DocumentUpload({ onSubmit }: DocumentUploadProps) {
+export default function DocumentUpload({ onSubmit, initialData }: DocumentUploadProps) {
+  const [documents, setDocuments] = useState<Document[]>(initialData || []);
+  const { uploadDocument, isLoading, error } = useApplication();
+  const { toast } = useToast();
+
   const [files, setFiles] = useState<Record<string, File[]>>({
     paystubs: [],
     governmentId: [],
@@ -76,7 +82,7 @@ export default function DocumentUpload({ onSubmit }: DocumentUploadProps) {
         ...prev,
         [fieldName]: [...prev[fieldName], ...fileArray],
       }));
-      
+
       form.setValue(fieldName as any, e.target.files as FileList);
     }
   };
@@ -84,16 +90,16 @@ export default function DocumentUpload({ onSubmit }: DocumentUploadProps) {
   const removeFile = (fieldName: string, index: number) => {
     const newFiles = [...files[fieldName]];
     newFiles.splice(index, 1);
-    
+
     setFiles((prev) => ({
       ...prev,
       [fieldName]: newFiles,
     }));
-    
+
     // Create a new FileList-like object
     const dt = new DataTransfer();
     newFiles.forEach(file => dt.items.add(file));
-    
+
     form.setValue(fieldName as any, dt.files);
   };
 
@@ -102,10 +108,36 @@ export default function DocumentUpload({ onSubmit }: DocumentUploadProps) {
     form.setValue("isSelfEmployed", value);
   };
 
+  const handleFileUpload = async (file: File, type: DocumentType) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("type", type);
+
+      const uploadedDoc = await uploadDocument(formData);
+
+      setDocuments((prev) => [...prev, uploadedDoc]);
+      toast({
+        title: "Success",
+        description: "Document uploaded successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to upload document",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSubmit = () => {
+    onSubmit(documents);
+  };
+
   return (
     <div>
       <h2 className="text-xl font-semibold mb-6">Document Upload</h2>
-      
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           {/* Paystubs */}
