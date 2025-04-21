@@ -1,42 +1,35 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import About from "./pages/About";
+
+import { Routes, Route } from "react-router-dom";
+import Dashboard from "./pages/Dashboard";
 import Apply from "./pages/Apply";
 import Login from "./pages/Login";
-import SignUp from "./pages/SignUp";
-import Dashboard from "./pages/Dashboard";
-import NotFound from "./pages/NotFound";
-import ApplicationLink from "./pages/ApplicationLink";
+import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import { Toaster } from "@/components/ui/toaster";
+import ApplicationSubmitted from "./pages/ApplicationSubmitted";
+import OREAFormPage from "./pages/OREAFormPage";
 import AnalyticsDashboard from "./pages/AnalyticsDashboard";
+import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
+function App() {
+  return (
+    <>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/apply/:id" element={<Apply />} />
+        <Route path="/forms/orea410/:id" element={<OREAFormPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/application-submitted" element={<ApplicationSubmitted />} />
+        <Route path="/dashboard/analytics" element={<AnalyticsDashboard />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
       <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-<Route path="/about" element={<About />} />
-<Route path="/apply" element={<Apply />} />
-<Route path="/apply/link/:linkId" element={<ApplicationLink />} />
-<Route path="/apply/:id" element={<Apply />} />
-<Route path="/login" element={<Login />} />
-<Route path="/signup" element={<SignUp />} />
-<Route path="/dashboard" element={<Dashboard />} />
-<Route path="/dashboard/analytics" element={<AnalyticsDashboard />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+    </>
+  );
+}
 
 export default App;
