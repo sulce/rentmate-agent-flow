@@ -1,6 +1,7 @@
+
 import { useState, useEffect } from "react";
 import { apiClient } from "@/lib/api/apiClient";
-import { Application, ApplicationStatus } from '@/types/application';
+import { Application, ApplicationStatus, IncomeData, RentalHistory } from '@/types/application';
 
 interface ApplicationState {
     application: Application | null;
@@ -56,6 +57,23 @@ export const useApplication = (applicationId?: string) => {
         };
     };
 
+    const getApplications = async (status?: ApplicationStatus) => {
+        try {
+            setState(prev => ({ ...prev, isLoading: true, error: null }));
+            const applications = await apiClient.getApplications(status);
+            return applications;
+        } catch (error) {
+            setState(prev => ({
+                ...prev,
+                isLoading: false,
+                error: error instanceof Error ? error.message : 'Failed to fetch applications',
+            }));
+            throw error;
+        } finally {
+            setState(prev => ({ ...prev, isLoading: false }));
+        }
+    };
+
     const generateApplicationLink = async () => {
         try {
             setState(prev => ({ ...prev, isLoading: true, error: null }));
@@ -92,6 +110,50 @@ export const useApplication = (applicationId?: string) => {
                 ...prev,
                 isLoading: false,
                 error: error instanceof Error ? error.message : 'Failed to update bio information',
+            }));
+            throw error;
+        }
+    };
+
+    const updateRentalHistory = async (rentalHistory: RentalHistory) => {
+        try {
+            setState(prev => ({ ...prev, isLoading: true, error: null }));
+            const updatedApplication = await apiClient.updateApplication(applicationId!, {
+                rental_history: rentalHistory
+            });
+            setState(prev => ({
+                ...prev,
+                application: updatedApplication,
+                isLoading: false,
+            }));
+            return updatedApplication;
+        } catch (error) {
+            setState(prev => ({
+                ...prev,
+                isLoading: false,
+                error: error instanceof Error ? error.message : 'Failed to update rental history',
+            }));
+            throw error;
+        }
+    };
+
+    const updateIncome = async (income: IncomeData) => {
+        try {
+            setState(prev => ({ ...prev, isLoading: true, error: null }));
+            const updatedApplication = await apiClient.updateApplication(applicationId!, {
+                income: income
+            });
+            setState(prev => ({
+                ...prev,
+                application: updatedApplication,
+                isLoading: false,
+            }));
+            return updatedApplication;
+        } catch (error) {
+            setState(prev => ({
+                ...prev,
+                isLoading: false,
+                error: error instanceof Error ? error.message : 'Failed to update income information',
             }));
             throw error;
         }
@@ -165,9 +227,12 @@ export const useApplication = (applicationId?: string) => {
         ...state,
         generateApplicationLink,
         updateBioInfo,
+        updateRentalHistory,
+        updateIncome,
         updateOREAForm,
         uploadDocument,
         updateStatus,
         getApplicationStatistics,
+        getApplications
     };
-}; 
+};

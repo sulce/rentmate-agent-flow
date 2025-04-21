@@ -9,10 +9,14 @@ import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { DateRange } from "react-day-picker";
 
 export const AnalyticsSection = () => {
     const { dashboardData, isLoading, error } = useAnalytics();
-    const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+    const [dateRange, setDateRange] = useState<DateRange | undefined>({
+        from: undefined,
+        to: undefined
+    });
 
     const formatTime = (minutes: number) => {
         const hours = Math.floor(minutes / 60);
@@ -70,11 +74,11 @@ export const AnalyticsSection = () => {
                                     variant="outline"
                                     className={cn(
                                         "w-[240px] justify-start text-left font-normal",
-                                        !dateRange.from && "text-muted-foreground"
+                                        !dateRange?.from && "text-muted-foreground"
                                     )}
                                 >
                                     <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {dateRange.from ? (
+                                    {dateRange?.from ? (
                                         dateRange.to ? (
                                             <>
                                                 {format(dateRange.from, "LLL dd, y")} -{" "}
@@ -92,7 +96,7 @@ export const AnalyticsSection = () => {
                                 <Calendar
                                     initialFocus
                                     mode="range"
-                                    defaultMonth={dateRange.from}
+                                    defaultMonth={dateRange?.from}
                                     selected={dateRange}
                                     onSelect={setDateRange}
                                     numberOfMonths={2}
@@ -146,4 +150,4 @@ export const AnalyticsSection = () => {
             </CardContent>
         </Card>
     );
-}; 
+};

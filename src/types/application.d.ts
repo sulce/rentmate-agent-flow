@@ -12,6 +12,8 @@ declare interface Application {
   orea_form?: any;
   created_at: string;
   updated_at: string;
+  last_saved_step?: number;
+  last_saved_at?: string;
 }
 
 declare type ApplicationStatus = 
@@ -38,7 +40,8 @@ declare type DocumentType =
   | 'BANK_STATEMENT'
   | 'REFERENCE_LETTER'
   | 'OREA_FORM'
-  | 'OTHER';
+  | 'OTHER'
+  | string; // Allow string to fix the form data type issues
 
 declare interface RentalHistory {
   currentAddress: string;

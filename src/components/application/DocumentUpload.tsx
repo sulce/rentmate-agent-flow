@@ -108,15 +108,18 @@ export default function DocumentUpload({ onSubmit, initialData }: DocumentUpload
     form.setValue("isSelfEmployed", value);
   };
 
-  const handleFileUpload = async (file: File, type: DocumentType) => {
+  const handleFileUpload = async (file: File, type: string) => {
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("type", type);
-
-      const uploadedDoc = await uploadDocument(formData);
-
-      setDocuments((prev) => [...prev, uploadedDoc]);
+      await uploadDocument(file, type);
+      
+      const newDoc: Document = {
+        name: file.name,
+        type: type as DocumentType,
+        file: file
+      };
+      
+      setDocuments(prev => [...prev, newDoc]);
+      
       toast({
         title: "Success",
         description: "Document uploaded successfully.",
