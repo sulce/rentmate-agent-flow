@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { apiClient } from "@/lib/api/apiClient";
-import { Application, ApplicationStatus, IncomeData, RentalHistory } from '@/types/application';
+import { Application, ApplicationStatus } from '@/types/application';
 
 interface ApplicationState {
     application: Application | null;
@@ -61,6 +61,7 @@ export const useApplication = (applicationId?: string) => {
         try {
             setState(prev => ({ ...prev, isLoading: true, error: null }));
             const applications = await apiClient.getApplications(status);
+            setState(prev => ({ ...prev, isLoading: false }));
             return applications;
         } catch (error) {
             setState(prev => ({
@@ -69,8 +70,6 @@ export const useApplication = (applicationId?: string) => {
                 error: error instanceof Error ? error.message : 'Failed to fetch applications',
             }));
             throw error;
-        } finally {
-            setState(prev => ({ ...prev, isLoading: false }));
         }
     };
 
@@ -115,7 +114,7 @@ export const useApplication = (applicationId?: string) => {
         }
     };
 
-    const updateRentalHistory = async (rentalHistory: RentalHistory) => {
+    const updateRentalHistory = async (rentalHistory: any) => {
         try {
             setState(prev => ({ ...prev, isLoading: true, error: null }));
             const updatedApplication = await apiClient.updateApplication(applicationId!, {
@@ -137,7 +136,7 @@ export const useApplication = (applicationId?: string) => {
         }
     };
 
-    const updateIncome = async (income: IncomeData) => {
+    const updateIncome = async (income: any) => {
         try {
             setState(prev => ({ ...prev, isLoading: true, error: null }));
             const updatedApplication = await apiClient.updateApplication(applicationId!, {

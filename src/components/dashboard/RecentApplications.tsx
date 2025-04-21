@@ -1,90 +1,95 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { TableHeader, TableRow, TableHead, TableBody, TableCell, Table } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { ExternalLink } from "lucide-react";
+
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApplication } from "@/hooks/useApplication";
-import { useToast } from "@/hooks/use-toast";
+import { Application, ApplicationStatus } from "@/types/application";
 
-interface Application {
+// Define a local interface for the applications displayed in the table
+interface ApplicationDisplay {
   id: string;
-  name: string;
-  date: string;
-  status: string;
-  property: string;
+  tenant_name?: string;
+  status: ApplicationStatus;
+  created_at: string;
+  property?: string;
 }
 
-interface RecentApplicationsProps {
-  isLoading?: boolean;
-}
-
-export const RecentApplications = ({ isLoading = false }: RecentApplicationsProps) => {
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [isLoadingData, setIsLoadingData] = useState(true);
+export const RecentApplications = ({ isLoading: parentLoading }: { isLoading?: boolean }) => {
   const { getApplications } = useApplication();
-  const { toast } = useToast();
-  const navigate = useNavigate();
+  const [applications, setApplications] = useState<ApplicationDisplay[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchApplications = async () => {
       try {
-        setIsLoadingData(true);
+        setIsLoading(true);
         const data = await getApplications();
-        setApplications(data);
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to load applications",
-          variant: "destructive",
-        });
+        // Convert the fetched applications to the display format
+        const displayApplications: ApplicationDisplay[] = data.map(app => ({
+          id: app.id,
+          tenant_name: app.tenant_name || 'Unknown Tenant',
+          status: app.status,
+          created_at: app.created_at,
+          property: 'Sample Property' // This is a mock value
+        }));
+        setApplications(displayApplications);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to fetch applications");
       } finally {
-        setIsLoadingData(false);
+        setIsLoading(false);
       }
     };
 
     fetchApplications();
-  }, []);
+  }, [getApplications]);
 
-  const viewApplication = (id: string) => {
-    navigate(`/applications/${id}`);
+  const getStatusBadgeVariant = (status: ApplicationStatus) => {
+    switch (status) {
+      case "submitted":
+        return "secondary";
+      case "in_review":
+        return "warning";
+      case "approved":
+        return "success";
+      case "rejected":
+        return "destructive";
+      case "forwarded":
+        return "info";
+      default:
+        return "outline";
+    }
   };
 
-  if (isLoading || isLoadingData) {
+  if (isLoading || parentLoading) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Recent Applications</CardTitle>
-          <CardDescription>
-            Review and manage recent rental applications
-          </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Applicant</TableHead>
-                <TableHead>Property</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...Array(4)].map((_, index) => (
-                <TableRow key={index}>
-                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-8" /></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-12" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Applications</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-red-500">
+            {error}
+          </div>
         </CardContent>
       </Card>
     );
@@ -94,54 +99,40 @@ export const RecentApplications = ({ isLoading = false }: RecentApplicationsProp
     <Card>
       <CardHeader>
         <CardTitle>Recent Applications</CardTitle>
-        <CardDescription>
-          Review and manage recent rental applications
-        </CardDescription>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Applicant</TableHead>
-              <TableHead>Property</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {applications.map((application) => (
-              <TableRow key={application.id}>
-                <TableCell className="font-medium">{application.id}</TableCell>
-                <TableCell>{application.name}</TableCell>
-                <TableCell>{application.property}</TableCell>
-                <TableCell>{new Date(application.date).toLocaleDateString()}</TableCell>
-                <TableCell>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${application.status === 'Complete'
-                        ? 'bg-green-100 text-green-800'
-                        : application.status === 'Incomplete'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-blue-100 text-blue-800'
-                      }`}
-                  >
-                    {application.status}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => viewApplication(application.id)}
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
-                </TableCell>
+        {applications.length === 0 ? (
+          <div className="text-center py-4 text-muted-foreground">
+            No recent applications found
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tenant</TableHead>
+                <TableHead>Property</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Submitted</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {applications.map((application) => (
+                <TableRow key={application.id}>
+                  <TableCell className="font-medium">{application.tenant_name}</TableCell>
+                  <TableCell>{application.property}</TableCell>
+                  <TableCell>
+                    <Badge variant={getStatusBadgeVariant(application.status)}>
+                      {application.status.replace("_", " ")}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {new Date(application.created_at).toLocaleDateString()}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </CardContent>
     </Card>
   );

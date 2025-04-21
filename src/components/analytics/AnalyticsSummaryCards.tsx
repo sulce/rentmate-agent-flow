@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Send, Inbox, Clock } from "lucide-react";
+
+import { Card, CardContent } from "@/components/ui/card";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useEffect } from "react";
 
@@ -7,20 +7,23 @@ export const AnalyticsSummaryCards = () => {
   const { dashboardData, isLoading, fetchDashboardData } = useAnalytics();
 
   useEffect(() => {
+    // Fetch data when component mounts
     fetchDashboardData();
   }, [fetchDashboardData]);
 
+  const formatTime = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m`;
+  };
+
   if (isLoading || !dashboardData) {
     return (
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[...Array(4)].map((_, index) => (
           <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium">Loading...</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">...</div>
-              <p className="text-xs text-muted-foreground">Loading...</p>
+            <CardContent className="p-6">
+              <div className="h-12 bg-gray-200 animate-pulse rounded"></div>
             </CardContent>
           </Card>
         ))}
@@ -29,58 +32,31 @@ export const AnalyticsSummaryCards = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-          <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="text-2xl font-bold">{dashboardData.totalApplications}</div>
-          <p className="text-xs text-muted-foreground">
-            Total applications received
-          </p>
+          <p className="text-xs text-muted-foreground">Total Applications</p>
         </CardContent>
       </Card>
-
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-          <CardTitle className="text-sm font-medium">Forwarded</CardTitle>
-          <Send className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="text-2xl font-bold">{dashboardData.forwardedApplications}</div>
-          <p className="text-xs text-muted-foreground">
-            {Math.round((dashboardData.forwardedApplications / dashboardData.totalApplications) * 100) || 0}% success rate
-          </p>
+          <p className="text-xs text-muted-foreground">Forwarded to Landlords</p>
         </CardContent>
       </Card>
-
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-          <CardTitle className="text-sm font-medium">In Review</CardTitle>
-          <Inbox className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="text-2xl font-bold">{dashboardData.inReviewApplications}</div>
-          <p className="text-xs text-muted-foreground">
-            {Math.round((dashboardData.inReviewApplications / dashboardData.totalApplications) * 100) || 0}% of total
-          </p>
+          <p className="text-xs text-muted-foreground">In Review</p>
         </CardContent>
       </Card>
-
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-          <CardTitle className="text-sm font-medium">Avg. Completion Time</CardTitle>
-          <Clock className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="text-2xl font-bold">
-            {Math.round(dashboardData.averageCompletionTime / 60)}h {Math.round(dashboardData.averageCompletionTime % 60)}m
+            {formatTime(dashboardData.averageCompletionTime)}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Average time to complete
-          </p>
+          <p className="text-xs text-muted-foreground">Avg. Completion Time</p>
         </CardContent>
       </Card>
     </div>

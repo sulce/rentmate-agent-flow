@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/apiClient';
 
 export const useAnalytics = () => {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['dashboardAnalytics'],
     queryFn: async () => {
       try {
@@ -28,9 +28,19 @@ export const useAnalytics = () => {
     }
   });
 
+  const fetchDashboardData = async () => {
+    return await refetch();
+  };
+
+  const refreshData = async () => {
+    return await refetch();
+  };
+
   return {
     dashboardData: data,
     isLoading,
-    error
+    error,
+    fetchDashboardData,
+    refreshData
   };
 };

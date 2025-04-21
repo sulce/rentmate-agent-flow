@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
@@ -8,6 +9,7 @@ export const ApplicationsChart = () => {
   const { dashboardData, isLoading, fetchDashboardData } = useAnalytics();
 
   useEffect(() => {
+    // Fetch data when component mounts
     fetchDashboardData();
   }, [fetchDashboardData]);
 

@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -14,7 +15,7 @@ import { DateRange } from "react-day-picker";
 export const AnalyticsSection = () => {
     const { dashboardData, isLoading, error } = useAnalytics();
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
-        from: undefined,
+        from: new Date(),
         to: undefined
     });
 
