@@ -5,18 +5,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApplication } from "@/hooks/useApplication";
-import { Application, ApplicationStatus } from "@/types/application";
+import { ApplicationDisplay, ApplicationStatus } from "@/types/application";
 
-// Define a local interface for the applications displayed in the table
-interface ApplicationDisplay {
-  id: string;
-  tenant_name?: string;
-  status: ApplicationStatus;
-  created_at: string;
-  property?: string;
+interface RecentApplicationsProps {
+  isLoading?: boolean;
 }
 
-export const RecentApplications = ({ isLoading: parentLoading }: { isLoading?: boolean }) => {
+export const RecentApplications = ({ isLoading: parentLoading }: RecentApplicationsProps) => {
   const { getApplications } = useApplication();
   const [applications, setApplications] = useState<ApplicationDisplay[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,14 +22,16 @@ export const RecentApplications = ({ isLoading: parentLoading }: { isLoading?: b
       try {
         setIsLoading(true);
         const data = await getApplications();
+        
         // Convert the fetched applications to the display format
         const displayApplications: ApplicationDisplay[] = data.map(app => ({
           id: app.id,
-          tenant_name: app.tenant_name || 'Unknown Tenant',
+          tenant_name: app.tenant_name || (app.bio_info ? `${app.bio_info.first_name} ${app.bio_info.last_name}` : 'Unknown Tenant'),
           status: app.status,
           created_at: app.created_at,
           property: 'Sample Property' // This is a mock value
         }));
+        
         setApplications(displayApplications);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch applications");
@@ -51,13 +48,13 @@ export const RecentApplications = ({ isLoading: parentLoading }: { isLoading?: b
       case "submitted":
         return "secondary";
       case "in_review":
-        return "warning";
+        return "default";
       case "approved":
         return "success";
       case "rejected":
         return "destructive";
       case "forwarded":
-        return "info";
+        return "secondary";
       default:
         return "outline";
     }

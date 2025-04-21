@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { apiClient } from "@/lib/api/apiClient";
-import { Application, ApplicationStatus } from '@/types/application';
+import { Application, ApplicationStatus, RentalHistory, IncomeData } from '@/types/application';
 
 interface ApplicationState {
     application: Application | null;
@@ -114,12 +114,12 @@ export const useApplication = (applicationId?: string) => {
         }
     };
 
-    const updateRentalHistory = async (rentalHistory: any) => {
+    const updateRentalHistory = async (rentalHistory: RentalHistory) => {
         try {
             setState(prev => ({ ...prev, isLoading: true, error: null }));
             const updatedApplication = await apiClient.updateApplication(applicationId!, {
                 rental_history: rentalHistory
-            });
+            } as Partial<Application>);
             setState(prev => ({
                 ...prev,
                 application: updatedApplication,
@@ -136,12 +136,12 @@ export const useApplication = (applicationId?: string) => {
         }
     };
 
-    const updateIncome = async (income: any) => {
+    const updateIncome = async (income: IncomeData) => {
         try {
             setState(prev => ({ ...prev, isLoading: true, error: null }));
             const updatedApplication = await apiClient.updateApplication(applicationId!, {
                 income: income
-            });
+            } as Partial<Application>);
             setState(prev => ({
                 ...prev,
                 application: updatedApplication,

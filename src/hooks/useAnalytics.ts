@@ -1,7 +1,18 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/apiClient';
+
+export interface AnalyticsData {
+  totalApplications: number;
+  forwardedApplications: number;
+  inReviewApplications: number;
+  averageCompletionTime: number; // in minutes
+  weeklyBreakdown: {
+    week: string;
+    count: number;
+  }[];
+}
 
 export const useAnalytics = () => {
   const { data, isLoading, error, refetch } = useQuery({
@@ -20,7 +31,7 @@ export const useAnalytics = () => {
             { week: 'Week 3', count: 3 },
             { week: 'Week 4', count: 9 }
           ]
-        };
+        } as AnalyticsData;
       } catch (error) {
         console.error("Error fetching analytics data:", error);
         throw error;

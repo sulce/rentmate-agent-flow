@@ -1,39 +1,30 @@
 import { useState } from "react";
-import { useApplication } from "@/hooks/useApplication";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { RentalHistory } from "@/types/application";
 
-export default function RentalHistoryForm({ onSubmit, initialData }: RentalHistoryFormProps) {
-    const [rentalHistory, setRentalHistory] = useState<RentalHistory>(initialData || {
-        currentAddress: "",
-        currentLandlord: "",
-        currentRent: 0,
-        currentDuration: "",
-        previousAddress: "",
-        previousLandlord: "",
-        previousRent: 0,
-        previousDuration: "",
-    });
+interface RentalHistoryFormProps {
+  onSubmit: (data: RentalHistory) => void;
+  initialData?: Partial<RentalHistory>;
+}
 
-    const { updateRentalHistory, isLoading, error } = useApplication();
-    const { toast } = useToast();
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            await updateRentalHistory(rentalHistory);
-            onSubmit(rentalHistory);
-            toast({
-                title: "Success",
-                description: "Rental history updated successfully.",
-            });
-        } catch (error) {
-            toast({
-                title: "Error",
-                description: error instanceof Error ? error.message : "Failed to update rental history",
-                variant: "destructive",
-            });
-        }
-    };
-
-    // ... rest of the existing code ...
-} 
+export default function RentalHistoryForm({ onSubmit, initialData = {} }: RentalHistoryFormProps) {
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // This is just a placeholder for now - implement the actual form later
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Rental History</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="mb-4">This form is still under development.</p>
+        <Button onClick={() => onSubmit({} as RentalHistory)}>
+          Save and Continue
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}

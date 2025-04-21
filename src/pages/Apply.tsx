@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useApplication } from "@/hooks/useApplication";
 import BioForm from "@/components/application/BioForm";
-import DocumentUpload from "@/components/application/DocumentUpload";
+import { DocumentUpload } from "@/components/application/DocumentUpload";
 import OREAForm from "@/components/application/OREAForm"; // Import the OREA form component
 import ApplicationLayout from "@/components/application/ApplicationLayout";
 import { Application, ApplicationStatus } from "@/types/application";

@@ -1,386 +1,307 @@
 
 import { useState } from "react";
+import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import SignatureCanvas from "@/components/application/SignatureCanvas";
+import { useToast } from "@/hooks/use-toast";
 
-// Form validation schema
-const formSchema = z.object({
-  // Applicant Information
-  applicantName: z.string().min(1, "Applicant name is required"),
-  applicantAddress: z.string().min(1, "Applicant address is required"),
-  applicantPhone: z.string().min(1, "Phone number is required"),
-  applicantEmail: z.string().email("Invalid email address"),
+// Define the schema for OREA Form 410
+const oreaFormSchema = z.object({
+  // Tenant Information
+  tenant_name: z.string().min(1, "Tenant name is required"),
+  tenant_address: z.string().min(1, "Tenant address is required"),
+  tenant_phone: z.string().min(1, "Tenant phone is required"),
+  tenant_email: z.string().email("Invalid email format"),
   
-  // Rental Property
-  rentalAddress: z.string().min(1, "Rental property address is required"),
-  unitNumber: z.string().optional(),
-  city: z.string().min(1, "City is required"),
-  province: z.string().min(1, "Province is required"),
-  postalCode: z.string().min(1, "Postal code is required"),
+  // Property Information
+  property_address: z.string().min(1, "Property address is required"),
+  rental_unit: z.string().optional(),
+  monthly_rent: z.string().min(1, "Monthly rent is required"),
+  lease_term: z.enum(["fixed", "month-to-month"]),
+  lease_start_date: z.string().min(1, "Lease start date is required"),
+  lease_end_date: z.string().optional(),
   
-  // Lease Details
-  leaseType: z.enum(["fixed", "month-to-month"]),
-  leaseStartDate: z.string().min(1, "Lease start date is required"),
-  leaseEndDate: z.string().optional(),
-  rentalAmount: z.string().min(1, "Rental amount is required"),
-  paymentFrequency: z.enum(["monthly", "bi-weekly", "weekly"]),
-  
-  // Utilities and Services
-  utilities: z.object({
-    electricity: z.boolean().default(false),
+  // Utilities
+  utilities_included: z.object({
     heat: z.boolean().default(false),
+    electricity: z.boolean().default(false),
     water: z.boolean().default(false),
-    cable: z.boolean().default(false),
     internet: z.boolean().default(false),
-    other: z.boolean().default(false),
+    cable: z.boolean().default(false),
+    gas: z.boolean().default(false)
   }),
+  
+  // Rent Payment
+  payment_method: z.enum(["cheque", "cash", "e_transfer", "pre_authorized", "other"]),
+  payment_method_other: z.string().optional(),
   
   // Deposits
-  firstMonthRent: z.boolean().default(true),
-  lastMonthRent: z.boolean().default(true),
-  securityDeposit: z.boolean().default(false),
-  keyDeposit: z.boolean().default(false),
+  last_month_deposit: z.string().min(1, "Last month deposit amount is required"),
+  key_deposit: z.string().optional(),
   
-  // Additional Information
-  additionalTerms: z.string().optional(),
+  // Smoking policy
+  smoking_permitted: z.enum(["yes", "no"]),
   
-  // Signature (handled separately)
-  agreementAccepted: z.boolean().refine(val => val === true, {
-    message: "You must agree to the terms to continue",
-  }),
+  // Pet policy
+  pets_permitted: z.enum(["yes", "no", "conditional"]),
+  pet_conditions: z.string().optional(),
+  
+  // Additional Terms
+  additional_terms: z.string().optional(),
 });
 
-type OREAFormValues = z.infer<typeof formSchema>;
+type OREAFormValues = z.infer<typeof oreaFormSchema>;
 
 interface OREAForm410Props {
-  onSubmit: (data: any) => void;
+  onSubmit: (data: OREAFormValues) => void;
   isSubmitting?: boolean;
-  initialValues?: Partial<OREAFormValues>;
+  initialData?: Partial<OREAFormValues>;
 }
 
-export default function OREAForm410({ 
-  onSubmit, 
-  isSubmitting = false, 
-  initialValues 
-}: OREAForm410Props) {
-  const [activeTab, setActiveTab] = useState("applicant");
-  const [signatureData, setSignatureData] = useState<string | null>(null);
+export default function OREAForm410({ onSubmit, isSubmitting = false, initialData = {} }: OREAForm410Props) {
+  const { toast } = useToast();
   const [previewMode, setPreviewMode] = useState(false);
   
   const form = useForm<OREAFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: initialValues || {
-      leaseType: "fixed",
-      paymentFrequency: "monthly",
-      utilities: {
-        electricity: false,
+    resolver: zodResolver(oreaFormSchema),
+    defaultValues: {
+      tenant_name: initialData.tenant_name || "",
+      tenant_address: initialData.tenant_address || "",
+      tenant_phone: initialData.tenant_phone || "",
+      tenant_email: initialData.tenant_email || "",
+      property_address: initialData.property_address || "",
+      rental_unit: initialData.rental_unit || "",
+      monthly_rent: initialData.monthly_rent || "",
+      lease_term: initialData.lease_term || "fixed",
+      lease_start_date: initialData.lease_start_date || "",
+      lease_end_date: initialData.lease_end_date || "",
+      utilities_included: initialData.utilities_included || {
         heat: false,
+        electricity: false,
         water: false,
-        cable: false,
         internet: false,
-        other: false,
+        cable: false,
+        gas: false
       },
-      firstMonthRent: true,
-      lastMonthRent: true,
-      securityDeposit: false,
-      keyDeposit: false,
-      agreementAccepted: false,
-    },
+      payment_method: initialData.payment_method || "cheque",
+      payment_method_other: initialData.payment_method_other || "",
+      last_month_deposit: initialData.last_month_deposit || "",
+      key_deposit: initialData.key_deposit || "",
+      smoking_permitted: initialData.smoking_permitted || "no",
+      pets_permitted: initialData.pets_permitted || "no",
+      pet_conditions: initialData.pet_conditions || "",
+      additional_terms: initialData.additional_terms || ""
+    }
   });
   
-  const handleFormSubmit = (data: OREAFormValues) => {
-    if (!signatureData) {
-      form.setError("agreementAccepted", { 
-        type: "manual", 
-        message: "Signature is required" 
+  const handleFormSubmit = (values: OREAFormValues) => {
+    try {
+      onSubmit(values);
+      toast({
+        title: "Form completed",
+        description: "OREA Form 410 has been successfully completed and will be processed."
       });
-      return;
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      toast({
+        title: "Error",
+        description: "There was an error processing your form. Please try again.",
+        variant: "destructive",
+      });
     }
-    
-    // Combine form data with signature
-    const formData = {
-      ...data,
-      signature: signatureData,
-    };
-    
-    onSubmit(formData);
-  };
-  
-  const togglePreview = () => {
-    setPreviewMode(!previewMode);
   };
   
   return (
-    <div className="animate-in fade-in duration-500">
-      {previewMode ? (
-        <div className="bg-white p-8 border border-gray-300 rounded-md mb-6">
-          <FormPreview formData={form.getValues()} signatureData={signatureData} />
-          <div className="mt-6 flex justify-end">
-            <Button variant="outline" onClick={togglePreview} className="mr-2">
-              Return to Edit
-            </Button>
-            <Button 
-              onClick={form.handleSubmit(handleFormSubmit)} 
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Submitting..." : "Submit Form"}
-            </Button>
-          </div>
+    <Card className="border-0 shadow-none">
+      <CardHeader className="px-0">
+        <CardTitle className="text-2xl font-bold text-center">Ontario Residential Tenancy Agreement</CardTitle>
+        <div className="text-center text-sm text-muted-foreground">
+          (Standard Form of Lease - Form 410)
         </div>
-      ) : (
+      </CardHeader>
+      <CardContent className="px-0">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
-            <div className="text-center mb-6">
-              <h1 className="text-2xl font-bold">ONTARIO REAL ESTATE ASSOCIATION</h1>
-              <h2 className="text-xl font-semibold mt-2">
-                Residential Rental Application (Form 410)
-              </h2>
-              <p className="text-sm text-gray-500 mt-2">
-                © 2023 Ontario Real Estate Association
-              </p>
-            </div>
-            
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid grid-cols-5 mb-6">
-                <TabsTrigger value="applicant">Applicant</TabsTrigger>
-                <TabsTrigger value="property">Property</TabsTrigger>
-                <TabsTrigger value="lease">Lease</TabsTrigger>
-                <TabsTrigger value="terms">Terms</TabsTrigger>
-                <TabsTrigger value="signature">Signature</TabsTrigger>
-              </TabsList>
+            {/* Section 1: Tenant Information */}
+            <div className="space-y-4 border p-4 rounded-md">
+              <h2 className="text-lg font-semibold mb-4">1. Tenant Information</h2>
               
-              <TabsContent value="applicant" className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="applicantName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Applicant Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Full name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="applicantEmail"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input type="email" placeholder="Email address" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
+              <FormField
+                control={form.control}
+                name="tenant_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tenant Name(s)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Full legal name(s)" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="tenant_address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Current Address</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Current address" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="applicantAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Current Address</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Street address" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="applicantPhone"
+                  name="tenant_phone"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <Input type="tel" placeholder="Phone number" {...field} />
+                        <Input placeholder="Phone number" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 
-                <div className="flex justify-end">
-                  <Button type="button" onClick={() => setActiveTab("property")}>
-                    Next: Property Details
-                  </Button>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="property" className="space-y-6">
                 <FormField
                   control={form.control}
-                  name="rentalAddress"
+                  name="tenant_email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Rental Property Address</FormLabel>
+                      <FormLabel>Email Address</FormLabel>
                       <FormControl>
-                        <Input placeholder="Street address" {...field} />
+                        <Input placeholder="Email address" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
-                <div className="grid md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="unitNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Unit Number (if applicable)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Unit #" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="city"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>City</FormLabel>
-                        <FormControl>
-                          <Input placeholder="City" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <div className="grid md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="province"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Province</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          defaultValue={field.value}
-                        >
+              </div>
+            </div>
+            
+            {/* Section 2: Property Information */}
+            <div className="space-y-4 border p-4 rounded-md">
+              <h2 className="text-lg font-semibold mb-4">2. Property Information</h2>
+              
+              <FormField
+                control={form.control}
+                name="property_address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Rental Property Address</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Full property address" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="rental_unit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Unit Number (if applicable)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Unit number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="monthly_rent"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Monthly Rent Amount ($)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. 1500.00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="lease_term"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Lease Term</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-col space-y-1"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0">
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select province" />
-                            </SelectTrigger>
+                            <RadioGroupItem value="fixed" />
                           </FormControl>
-                          <SelectContent>
-                            <SelectItem value="ON">Ontario</SelectItem>
-                            <SelectItem value="BC">British Columbia</SelectItem>
-                            <SelectItem value="AB">Alberta</SelectItem>
-                            <SelectItem value="QC">Quebec</SelectItem>
-                            <SelectItem value="MB">Manitoba</SelectItem>
-                            <SelectItem value="SK">Saskatchewan</SelectItem>
-                            <SelectItem value="NS">Nova Scotia</SelectItem>
-                            <SelectItem value="NB">New Brunswick</SelectItem>
-                            <SelectItem value="NL">Newfoundland and Labrador</SelectItem>
-                            <SelectItem value="PE">Prince Edward Island</SelectItem>
-                            <SelectItem value="YT">Yukon</SelectItem>
-                            <SelectItem value="NT">Northwest Territories</SelectItem>
-                            <SelectItem value="NU">Nunavut</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="postalCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Postal Code</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Postal code" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <div className="flex justify-between">
-                  <Button type="button" variant="outline" onClick={() => setActiveTab("applicant")}>
-                    Back
-                  </Button>
-                  <Button type="button" onClick={() => setActiveTab("lease")}>
-                    Next: Lease Details
-                  </Button>
-                </div>
-              </TabsContent>
+                          <FormLabel className="font-normal">
+                            Fixed Term Lease
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="month-to-month" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Month-to-Month
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
-              <TabsContent value="lease" className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="leaseType"
+                  name="lease_start_date"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Lease Type</FormLabel>
+                      <FormLabel>Lease Start Date</FormLabel>
                       <FormControl>
-                        <RadioGroup
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          className="flex space-x-4"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="fixed" id="fixed" />
-                            <label htmlFor="fixed">Fixed Term</label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="month-to-month" id="month-to-month" />
-                            <label htmlFor="month-to-month">Month-to-Month</label>
-                          </div>
-                        </RadioGroup>
+                        <Input type="date" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 
-                <div className="grid md:grid-cols-2 gap-6">
+                {form.watch("lease_term") === "fixed" && (
                   <FormField
                     control={form.control}
-                    name="leaseStartDate"
+                    name="lease_end_date"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Lease Start Date</FormLabel>
+                        <FormLabel>Lease End Date</FormLabel>
                         <FormControl>
                           <Input type="date" {...field} />
                         </FormControl>
@@ -388,528 +309,463 @@ export default function OREAForm410({
                       </FormItem>
                     )}
                   />
-                  
-                  {form.watch("leaseType") === "fixed" && (
-                    <FormField
-                      control={form.control}
-                      name="leaseEndDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Lease End Date</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
-                </div>
-                
-                <div className="grid md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="rentalAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Rental Amount ($)</FormLabel>
-                        <FormControl>
-                          <Input type="number" min="0" step="0.01" placeholder="0.00" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="paymentFrequency"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Payment Frequency</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select frequency" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="monthly">Monthly</SelectItem>
-                            <SelectItem value="bi-weekly">Bi-weekly</SelectItem>
-                            <SelectItem value="weekly">Weekly</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <div className="flex justify-between">
-                  <Button type="button" variant="outline" onClick={() => setActiveTab("property")}>
-                    Back
-                  </Button>
-                  <Button type="button" onClick={() => setActiveTab("terms")}>
-                    Next: Terms & Conditions
-                  </Button>
-                </div>
-              </TabsContent>
+                )}
+              </div>
+            </div>
+            
+            {/* Section 3: Utilities */}
+            <div className="space-y-4 border p-4 rounded-md">
+              <h2 className="text-lg font-semibold mb-4">3. Utilities Included in Rent</h2>
               
-              <TabsContent value="terms" className="space-y-6">
-                <div className="border border-gray-200 rounded-md p-6 space-y-6">
-                  <h3 className="font-semibold text-lg">Utilities and Services</h3>
-                  <p className="text-sm text-gray-600">Select which utilities and services are included in the rent:</p>
-                  
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="utilities.electricity"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Electricity</FormLabel>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="utilities.heat"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Heat</FormLabel>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="utilities.water"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Water</FormLabel>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="utilities.cable"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Cable TV</FormLabel>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="utilities.internet"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Internet</FormLabel>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="utilities.other"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Other</FormLabel>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-                
-                <div className="border border-gray-200 rounded-md p-6 space-y-6">
-                  <h3 className="font-semibold text-lg">Deposits Required</h3>
-                  
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="firstMonthRent"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>First Month's Rent</FormLabel>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="lastMonthRent"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Last Month's Rent</FormLabel>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="securityDeposit"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Security Deposit</FormLabel>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="keyDeposit"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Key Deposit</FormLabel>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-                
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
-                  name="additionalTerms"
+                  name="utilities_included.heat"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Additional Terms and Conditions</FormLabel>
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                       <FormControl>
-                        <Textarea
-                          placeholder="Enter any additional terms or conditions..."
-                          className="h-32"
-                          {...field}
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
                         />
                       </FormControl>
-                      <FormDescription>
-                        Include any additional agreements or conditions not covered above.
-                      </FormDescription>
-                      <FormMessage />
+                      <FormLabel className="font-normal">
+                        Heat
+                      </FormLabel>
                     </FormItem>
                   )}
                 />
                 
-                <div className="flex justify-between">
-                  <Button type="button" variant="outline" onClick={() => setActiveTab("lease")}>
-                    Back
-                  </Button>
-                  <Button type="button" onClick={() => setActiveTab("signature")}>
-                    Next: Signature
-                  </Button>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="signature" className="space-y-6">
-                <div className="border border-gray-200 rounded-md p-6">
-                  <h3 className="font-semibold text-lg mb-4">Signature</h3>
-                  <p className="text-sm text-gray-600 mb-6">
-                    By signing below, I certify that all information provided is true and correct to the best of my knowledge.
-                  </p>
-                  
-                  <div className="mb-6">
-                    <p className="font-medium mb-2">Sign below:</p>
-                    <SignatureCanvas 
-                      onChange={setSignatureData} 
-                      existingSignature={signatureData}
-                    />
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="agreementAccepted"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 mt-4">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>
-                            I confirm that all information provided is accurate and complete. I understand that providing false information may result in the rejection of my application.
-                          </FormLabel>
-                          <FormMessage />
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                <FormField
+                  control={form.control}
+                  name="utilities_included.electricity"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Electricity
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
                 
-                <div className="flex justify-between">
-                  <Button type="button" variant="outline" onClick={() => setActiveTab("terms")}>
-                    Back
-                  </Button>
-                  <div>
-                    <Button type="button" variant="outline" onClick={togglePreview} className="mr-2">
-                      Preview Form
-                    </Button>
-                    <Button 
-                      type="submit" 
-                      disabled={isSubmitting || !form.formState.isValid || !signatureData}
-                    >
-                      {isSubmitting ? "Submitting..." : "Submit Form"}
-                    </Button>
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </form>
-        </Form>
-      )}
-    </div>
-  );
-}
-
-// A preview component to show what the form will look like as a PDF
-function FormPreview({ formData, signatureData }: { formData: any, signatureData: string | null }) {
-  return (
-    <div className="bg-white p-6 border border-gray-200 rounded-md">
-      <div className="text-center mb-6">
-        <h1 className="text-2xl font-bold">ONTARIO REAL ESTATE ASSOCIATION</h1>
-        <h2 className="text-xl font-semibold mt-2">
-          Residential Rental Application (Form 410)
-        </h2>
-        <p className="text-sm text-gray-500 mt-2">
-          © 2023 Ontario Real Estate Association
-        </p>
-      </div>
-      
-      <div className="space-y-6">
-        <div className="border-t border-gray-200 pt-4">
-          <h3 className="font-semibold text-lg mb-4">Applicant Information</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Applicant Name</p>
-              <p>{formData.applicantName}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Email</p>
-              <p>{formData.applicantEmail}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Current Address</p>
-              <p>{formData.applicantAddress}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Phone Number</p>
-              <p>{formData.applicantPhone}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="border-t border-gray-200 pt-4">
-          <h3 className="font-semibold text-lg mb-4">Rental Property</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <p className="text-sm font-medium text-gray-500">Rental Property Address</p>
-              <p>{formData.rentalAddress}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Unit Number</p>
-              <p>{formData.unitNumber || "N/A"}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">City</p>
-              <p>{formData.city}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Province</p>
-              <p>{formData.province}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Postal Code</p>
-              <p>{formData.postalCode}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="border-t border-gray-200 pt-4">
-          <h3 className="font-semibold text-lg mb-4">Lease Details</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Lease Type</p>
-              <p>{formData.leaseType === "fixed" ? "Fixed Term" : "Month-to-Month"}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Lease Start Date</p>
-              <p>{formData.leaseStartDate}</p>
-            </div>
-            {formData.leaseType === "fixed" && (
-              <div>
-                <p className="text-sm font-medium text-gray-500">Lease End Date</p>
-                <p>{formData.leaseEndDate || "N/A"}</p>
+                <FormField
+                  control={form.control}
+                  name="utilities_included.water"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Water
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="utilities_included.internet"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Internet
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="utilities_included.cable"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Cable TV
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="utilities_included.gas"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Gas
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
               </div>
-            )}
-            <div>
-              <p className="text-sm font-medium text-gray-500">Rental Amount</p>
-              <p>${formData.rentalAmount}</p>
             </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Payment Frequency</p>
-              <p>{formData.paymentFrequency}</p>
+            
+            {/* Section 4: Rent Payment */}
+            <div className="space-y-4 border p-4 rounded-md">
+              <h2 className="text-lg font-semibold mb-4">4. Rent Payment Method</h2>
+              
+              <FormField
+                control={form.control}
+                name="payment_method"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Payment Method</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-col space-y-1"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="cheque" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Cheque
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="cash" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Cash
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="e_transfer" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            e-Transfer
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="pre_authorized" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Pre-authorized Payment
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="other" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Other
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              {form.watch("payment_method") === "other" && (
+                <FormField
+                  control={form.control}
+                  name="payment_method_other"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Specify Other Payment Method</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
-          </div>
-        </div>
-        
-        <div className="border-t border-gray-200 pt-4">
-          <h3 className="font-semibold text-lg mb-4">Utilities and Services Included</h3>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Electricity</p>
-              <p>{formData.utilities.electricity ? "Yes" : "No"}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Heat</p>
-              <p>{formData.utilities.heat ? "Yes" : "No"}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Water</p>
-              <p>{formData.utilities.water ? "Yes" : "No"}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Cable TV</p>
-              <p>{formData.utilities.cable ? "Yes" : "No"}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Internet</p>
-              <p>{formData.utilities.internet ? "Yes" : "No"}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Other</p>
-              <p>{formData.utilities.other ? "Yes" : "No"}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="border-t border-gray-200 pt-4">
-          <h3 className="font-semibold text-lg mb-4">Deposits Required</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-500">First Month's Rent</p>
-              <p>{formData.firstMonthRent ? "Yes" : "No"}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Last Month's Rent</p>
-              <p>{formData.lastMonthRent ? "Yes" : "No"}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Security Deposit</p>
-              <p>{formData.securityDeposit ? "Yes" : "No"}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Key Deposit</p>
-              <p>{formData.keyDeposit ? "Yes" : "No"}</p>
-            </div>
-          </div>
-        </div>
-        
-        {formData.additionalTerms && (
-          <div className="border-t border-gray-200 pt-4">
-            <h3 className="font-semibold text-lg mb-4">Additional Terms and Conditions</h3>
-            <p className="whitespace-pre-wrap">{formData.additionalTerms}</p>
-          </div>
-        )}
-        
-        <div className="border-t border-gray-200 pt-4">
-          <h3 className="font-semibold text-lg mb-4">Signature</h3>
-          {signatureData ? (
-            <div className="border border-gray-300 p-2 inline-block">
-              <img 
-                src={signatureData} 
-                alt="Applicant signature" 
-                className="max-h-24" 
+            
+            {/* Section 5: Deposits */}
+            <div className="space-y-4 border p-4 rounded-md">
+              <h2 className="text-lg font-semibold mb-4">5. Deposits</h2>
+              
+              <FormField
+                control={form.control}
+                name="last_month_deposit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Last Month's Rent Deposit ($)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. 1500.00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="key_deposit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Key Deposit (if applicable) ($)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. 50.00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
-          ) : (
-            <p className="text-red-500">No signature provided</p>
-          )}
-        </div>
-      </div>
-    </div>
+            
+            {/* Section 6: Smoking Policy */}
+            <div className="space-y-4 border p-4 rounded-md">
+              <h2 className="text-lg font-semibold mb-4">6. Smoking Policy</h2>
+              
+              <FormField
+                control={form.control}
+                name="smoking_permitted"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Is smoking permitted on the premises?</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-col space-y-1"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="yes" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Yes
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="no" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            No
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            
+            {/* Section 7: Pet Policy */}
+            <div className="space-y-4 border p-4 rounded-md">
+              <h2 className="text-lg font-semibold mb-4">7. Pet Policy</h2>
+              
+              <FormField
+                control={form.control}
+                name="pets_permitted"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Are pets permitted on the premises?</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-col space-y-1"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="yes" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Yes
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="no" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            No
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="conditional" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Yes, with conditions
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              {form.watch("pets_permitted") === "conditional" && (
+                <FormField
+                  control={form.control}
+                  name="pet_conditions"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Specify Pet Conditions</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="e.g. Only cats allowed, maximum 2 pets, etc."
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+            </div>
+            
+            {/* Section 8: Additional Terms */}
+            <div className="space-y-4 border p-4 rounded-md">
+              <h2 className="text-lg font-semibold mb-4">8. Additional Terms and Conditions</h2>
+              
+              <FormField
+                control={form.control}
+                name="additional_terms"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Additional Terms (optional)</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Any additional terms or conditions you'd like to include"
+                        {...field}
+                        className="min-h-32"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            
+            {/* Preview Button and Submit Button */}
+            <div className="flex justify-between pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPreviewMode(!previewMode)}
+              >
+                {previewMode ? "Edit Form" : "Preview Form"}
+              </Button>
+              
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Generating PDF..." : "Generate PDF"}
+              </Button>
+            </div>
+            
+            {/* Preview Mode */}
+            {previewMode && (
+              <div className="mt-8 p-6 border rounded-md bg-gray-50">
+                <h2 className="text-xl font-bold mb-4 text-center">Ontario Residential Tenancy Agreement</h2>
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="font-bold mb-2">1. Tenant Information</h3>
+                    <p><span className="font-medium">Name:</span> {form.getValues("tenant_name")}</p>
+                    <p><span className="font-medium">Address:</span> {form.getValues("tenant_address")}</p>
+                    <p><span className="font-medium">Phone:</span> {form.getValues("tenant_phone")}</p>
+                    <p><span className="font-medium">Email:</span> {form.getValues("tenant_email")}</p>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-bold mb-2">2. Property Information</h3>
+                    <p><span className="font-medium">Address:</span> {form.getValues("property_address")}</p>
+                    {form.getValues("rental_unit") && <p><span className="font-medium">Unit:</span> {form.getValues("rental_unit")}</p>}
+                    <p><span className="font-medium">Monthly Rent:</span> ${form.getValues("monthly_rent")}</p>
+                    <p><span className="font-medium">Lease Term:</span> {form.getValues("lease_term") === "fixed" ? "Fixed Term" : "Month-to-Month"}</p>
+                    <p><span className="font-medium">Start Date:</span> {form.getValues("lease_start_date")}</p>
+                    {form.getValues("lease_term") === "fixed" && <p><span className="font-medium">End Date:</span> {form.getValues("lease_end_date")}</p>}
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-bold mb-2">3. Utilities Included</h3>
+                    <ul className="list-disc pl-5">
+                      {form.getValues("utilities_included.heat") && <li>Heat</li>}
+                      {form.getValues("utilities_included.electricity") && <li>Electricity</li>}
+                      {form.getValues("utilities_included.water") && <li>Water</li>}
+                      {form.getValues("utilities_included.internet") && <li>Internet</li>}
+                      {form.getValues("utilities_included.cable") && <li>Cable TV</li>}
+                      {form.getValues("utilities_included.gas") && <li>Gas</li>}
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-bold mb-2">4. Rent Payment Method</h3>
+                    <p>
+                      {form.getValues("payment_method") === "other" 
+                        ? form.getValues("payment_method_other") 
+                        : form.getValues("payment_method").replace('_', ' ').charAt(0).toUpperCase() + form.getValues("payment_method").replace('_', ' ').slice(1)
+                      }
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-bold mb-2">5. Deposits</h3>
+                    <p><span className="font-medium">Last Month's Rent:</span> ${form.getValues("last_month_deposit")}</p>
+                    {form.getValues("key_deposit") && <p><span className="font-medium">Key Deposit:</span> ${form.getValues("key_deposit")}</p>}
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-bold mb-2">6. Smoking Policy</h3>
+                    <p>Smoking is {form.getValues("smoking_permitted") === "yes" ? "permitted" : "not permitted"} on the premises.</p>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-bold mb-2">7. Pet Policy</h3>
+                    {form.getValues("pets_permitted") === "yes" && <p>Pets are permitted on the premises.</p>}
+                    {form.getValues("pets_permitted") === "no" && <p>Pets are not permitted on the premises.</p>}
+                    {form.getValues("pets_permitted") === "conditional" && (
+                      <>
+                        <p>Pets are permitted with the following conditions:</p>
+                        <p className="italic">{form.getValues("pet_conditions")}</p>
+                      </>
+                    )}
+                  </div>
+                  
+                  {form.getValues("additional_terms") && (
+                    <div>
+                      <h3 className="font-bold mb-2">8. Additional Terms</h3>
+                      <p className="whitespace-pre-wrap">{form.getValues("additional_terms")}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
   );
 }

@@ -1,36 +1,31 @@
+
 import { useState } from "react";
-import { useApplication } from "@/hooks/useApplication";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { IncomeData } from "@/types/application";
 
-export default function IncomeForm({ onSubmit, initialData }: IncomeFormProps) {
-    const [incomeData, setIncomeData] = useState<IncomeData>(initialData || {
-        employmentType: "",
-        monthlyIncome: 0,
-        employerName: "",
-        jobTitle: "",
-        employmentDuration: "",
-    });
+interface IncomeFormProps {
+  onSubmit: (data: IncomeData) => void;
+  initialData?: Partial<IncomeData>;
+}
 
-    const { updateIncome, isLoading, error } = useApplication();
-    const { toast } = useToast();
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            await updateIncome(incomeData);
-            onSubmit(incomeData);
-            toast({
-                title: "Success",
-                description: "Income information updated successfully.",
-            });
-        } catch (error) {
-            toast({
-                title: "Error",
-                description: error instanceof Error ? error.message : "Failed to update income information",
-                variant: "destructive",
-            });
-        }
-    };
-
-    // ... rest of the existing code ...
-} 
+export default function IncomeForm({ onSubmit, initialData = {} }: IncomeFormProps) {
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // This is just a placeholder for now - implement the actual form later
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Income Information</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="mb-4">This form is still under development.</p>
+        <Button onClick={() => onSubmit({} as IncomeData)}>
+          Save and Continue
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}

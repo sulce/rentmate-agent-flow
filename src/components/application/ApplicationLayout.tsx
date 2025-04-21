@@ -1,157 +1,96 @@
-import { ReactNode, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Save } from "lucide-react";
+
+import { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { apiClient } from "@/lib/api/apiClient"; // Import apiClient directly
+import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { Application } from "@/types/application";
 
 interface ApplicationLayoutProps {
   children: ReactNode;
   step: number;
   totalSteps: number;
-  onNext?: () => void;
-  onPrev?: () => void;
+  onNext: () => void;
+  onPrev: () => void;
   canGoNext?: boolean;
 }
 
-export default function ApplicationLayout({
-  children,
-  step,
-  totalSteps,
-  onNext,
-  onPrev,
-  canGoNext = true,
-}: ApplicationLayoutProps) {
-  const { toast } = useToast();
-  const [saving, setSaving] = useState(false);
-  const { id } = useParams(); // Changed from applicationId to id
+const ApplicationLayout = ({ 
+  children, 
+  step, 
+  totalSteps, 
+  onNext, 
+  onPrev, 
+  canGoNext = true 
+}: ApplicationLayoutProps) => {
+  const progress = (step / totalSteps) * 100;
+  
+  const getStepTitle = (step: number): string => {
+    switch (step) {
+      case 1:
+        return "Personal Information";
+      case 2:
+        return "OREA Form & Documents";
+      case 3:
+        return "Review & Submit";
+      default:
+        return `Step ${step}`;
+    }
+  };
 
-  const handleSaveProgress = async () => {
+  // Save progress in local storage
+  const saveProgress = (currStep: number) => {
     try {
-      setSaving(true);
-      
-      // Use apiClient directly instead of the hook
-      if (id) {
-        await apiClient.updateApplication(id, {
-          last_saved_step: step,
-          last_saved_at: new Date().toISOString(),
-        });
-        
-        toast({
-          title: "Progress Saved",
-          description: "You can continue your application later.",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Application ID is missing",
-          variant: "destructive",
-        });
-      }
+      const applicationData: Partial<Application> = {
+        last_saved_step: currStep
+      };
+      localStorage.setItem('applicationProgress', JSON.stringify(applicationData));
     } catch (error) {
-      console.error("Save progress error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to save progress",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
+      console.error('Error saving progress:', error);
     }
   };
 
   return (
-    <div className="bg-white min-h-screen">
-      <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6 lg:px-8 animate-in">
-        <div className="mb-8 text-center">
-          <Link to="/" className="text-2xl font-bold text-rentmate-primary">
-            RentMate
-          </Link>
-          <h1 className="mt-6 text-3xl font-extrabold text-gray-900">
-            Rental Application
-          </h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Please complete all sections of this application
-          </p>
+    <div className="container mx-auto py-8 px-4 max-w-4xl">
+      <div className="mb-8 space-y-4">
+        <h1 className="text-3xl font-bold">Rental Application</h1>
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium">{getStepTitle(step)}</span>
+            <span className="text-sm text-gray-500">Step {step} of {totalSteps}</span>
+          </div>
+          <Progress value={progress} className="h-2" />
         </div>
+      </div>
 
-        {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">
-              Step {step} of {totalSteps}
-            </span>
-            <span className="text-sm font-medium text-gray-700">
-              {Math.round((step / totalSteps) * 100)}% Complete
-            </span>
-          </div>
-          <div className="h-2 bg-gray-200 rounded-full">
-            <div
-              className="h-2 bg-rentmate-primary rounded-full transition-all duration-300 ease-in-out"
-              style={{ width: `${(step / totalSteps) * 100}%` }}
-            ></div>
-          </div>
-        </div>
+      <Card className="p-6 mb-6">
+        {children}
+      </Card>
 
-        {/* Main Content */}
-        <div className="bg-white shadow rounded-md p-6 mb-6">
-          {children}
-        </div>
-
-        {/* Navigation Buttons */}
-        <div className="flex justify-between">
-          <div>
-            {step > 1 && onPrev && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onPrev}
-                className="flex items-center"
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Previous
-              </Button>
-            )}
-          </div>
-          <div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleSaveProgress}
-              disabled={saving}
-              className="flex items-center mr-2"
-            >
-              <Save className="mr-2 h-4 w-4" />
-              {saving ? "Saving..." : "Save Progress"}
-            </Button>
-            {step < totalSteps && onNext && (
-              <Button
-                type="button"
-                onClick={onNext}
-                disabled={!canGoNext}
-                className="flex items-center"
-              >
-                Next
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            )}
-            {step === totalSteps && (
-              <Button
-                type="button"
-                className="flex items-center"
-                onClick={() => {
-                  toast({
-                    title: "Application Submitted",
-                    description: "Your application has been submitted successfully.",
-                  });
-                }}
-              >
-                Submit Application
-              </Button>
-            )}
-          </div>
-        </div>
+      <div className="flex justify-between mt-6">
+        <Button 
+          variant="outline" 
+          onClick={() => {
+            onPrev();
+            saveProgress(step - 1);
+          }}
+          disabled={step === 1}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+        </Button>
+        <Button 
+          onClick={() => {
+            onNext();
+            saveProgress(step + 1);
+          }}
+          disabled={!canGoNext}
+        >
+          {step === totalSteps ? "Submit Application" : "Next"} 
+          {step !== totalSteps && <ArrowRight className="ml-2 h-4 w-4" />}
+        </Button>
       </div>
     </div>
   );
-}
+};
+
+export default ApplicationLayout;

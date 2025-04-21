@@ -1,181 +1,209 @@
 
-import { useState, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { FileUploader } from "@/components/shared/FileUploader";
-import { DocumentType, Document } from "@/types/application";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { FileUploader } from "@/components/shared/FileUploader";
+import { Document } from "@/types/application";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CheckCircle } from "lucide-react";
 
 interface DocumentUploadProps {
-  applicationId: string;
-  documents: Document[];
-  onUploadSuccess: (document: Document) => void;
+  onSubmit: (data: any) => void;
+  initialData?: Document[];
 }
 
-export const DocumentUpload = ({ applicationId, documents, onUploadSuccess }: DocumentUploadProps) => {
-  const [uploading, setUploading] = useState(false);
-  const [uploadedDocuments, setUploadedDocuments] = useState<Document[]>(documents || []);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+export const DocumentUpload = ({ onSubmit, initialData = [] }: DocumentUploadProps) => {
+  const [documents, setDocuments] = useState<Document[]>(initialData);
+  const [governmentIdFile, setGovernmentIdFile] = useState<File | null>(null);
+  const [paystubFiles, setPaystubFiles] = useState<File[]>([]);
+  const [employmentLetterFile, setEmploymentLetterFile] = useState<File | null>(null);
+  const [noticeOfAssessmentFile, setNoticeOfAssessmentFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSelfEmployed, setIsSelfEmployed] = useState<'yes' | 'no'>('no');
   const { toast } = useToast();
 
-  const documentTypes: { label: string; value: DocumentType; description: string }[] = [
-    { 
-      label: "Government ID", 
-      value: "ID", 
-      description: "Driver's license, passport, or other government-issued ID" 
-    },
-    { 
-      label: "Employment Letter", 
-      value: "EMPLOYMENT_LETTER", 
-      description: "A letter from your employer confirming your employment" 
-    },
-    { 
-      label: "Credit Report", 
-      value: "CREDIT_REPORT", 
-      description: "Your recent credit report" 
-    },
-    { 
-      label: "Bank Statement", 
-      value: "BANK_STATEMENT", 
-      description: "Last 3 months of bank statements" 
-    },
-    { 
-      label: "Reference Letter", 
-      value: "REFERENCE_LETTER", 
-      description: "A letter from a previous landlord or character reference" 
-    },
-    { 
-      label: "Other Document", 
-      value: "OTHER", 
-      description: "Any other relevant document for your application" 
+  useEffect(() => {
+    if (initialData && initialData.length > 0) {
+      setDocuments(initialData);
     }
-  ];
+  }, [initialData]);
 
-  const handleUpload = async (file: File, documentType: DocumentType) => {
-    if (!file) {
-      toast({
-        title: "Error",
-        description: "Please select a file to upload",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setUploading(true);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
 
     try {
-      // Simulate API upload
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const formData = new FormData();
       
-      // Simulate a successful upload with a fake URL
-      const fakeUrl = URL.createObjectURL(file);
+      if (governmentIdFile) {
+        formData.append('governmentId', governmentIdFile);
+      }
       
-      const newDocument: Document = {
-        id: Date.now().toString(),
-        name: file.name,
-        type: documentType,
-        url: fakeUrl,
-        uploaded_at: new Date().toISOString()
-      };
+      paystubFiles.forEach((file, index) => {
+        formData.append(`paystub_${index}`, file);
+      });
       
-      setUploadedDocuments(prev => [...prev, newDocument]);
-      onUploadSuccess(newDocument);
+      if (employmentLetterFile) {
+        formData.append('employmentLetter', employmentLetterFile);
+      }
       
+      if (isSelfEmployed === 'yes' && noticeOfAssessmentFile) {
+        formData.append('noticeOfAssessment', noticeOfAssessmentFile);
+      }
+      
+      // Call the onSubmit handler
+      await onSubmit({
+        governmentId: governmentIdFile ? [governmentIdFile] : [],
+        paystubs: paystubFiles,
+        employmentLetter: employmentLetterFile ? [employmentLetterFile] : [],
+        noticeOfAssessment: noticeOfAssessmentFile ? [noticeOfAssessmentFile] : [],
+        isSelfEmployed,
+      });
+
+      // Add to local documents array
+      if (governmentIdFile) {
+        const newDoc: Document = {
+          type: 'government_id',
+          url: URL.createObjectURL(governmentIdFile),
+          uploaded_at: new Date().toISOString(),
+          name: governmentIdFile.name
+        };
+        setDocuments(prev => [...prev, newDoc]);
+      }
+
       toast({
-        title: "Upload successful",
-        description: "Your document has been uploaded.",
+        title: "Documents uploaded",
+        description: "Your documents have been uploaded successfully.",
       });
     } catch (error) {
-      console.error("Error uploading document:", error);
+      console.error("Error uploading documents:", error);
       toast({
-        title: "Upload failed",
-        description: "There was an error uploading your document. Please try again.",
+        title: "Error",
+        description: "Failed to upload documents. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setUploading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const handleFileChange = async (file: File, documentTypeStr: string) => {
-    // Convert the string to DocumentType type
-    const documentType = documentTypeStr as DocumentType;
-    await handleUpload(file, documentType);
-  };
-
-  const uploadNewFile = (documentType: DocumentType) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        await handleUpload(file, documentType);
-      }
-    };
-    input.click();
-  };
-
-  const hasDocumentOfType = (type: DocumentType) => {
-    return uploadedDocuments.some(doc => doc.type === type);
+  // Check if document of specific type exists
+  const documentExists = (type: string) => {
+    return documents.some(doc => doc.type === type);
   };
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Upload Documents</h2>
-      <p className="text-muted-foreground">
-        Please upload the following documents to complete your application.
-      </p>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {documentTypes.map((docType) => (
-          <Card key={docType.value} className="p-4">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <h3 className="font-medium">{docType.label}</h3>
-                <p className="text-sm text-muted-foreground">{docType.description}</p>
-              </div>
-              {hasDocumentOfType(docType.value) ? (
-                <Badge status="success">Uploaded</Badge>
-              ) : null}
+    <Card>
+      <CardHeader>
+        <CardTitle>Document Upload</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {documents.length > 0 && (
+            <Alert className="mb-6 bg-green-50 border-green-100">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <AlertDescription>
+                You have already uploaded {documents.length} document(s)
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Required Documents</h3>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Government-issued ID</label>
+              <FileUploader
+                id="government-id"
+                onChange={(file) => setGovernmentIdFile(file)}
+                fileName={governmentIdFile?.name || (documentExists('government_id') ? 'ID Document (Uploaded)' : undefined)}
+                label="Upload your government-issued ID"
+                description="Driver's license, passport, or other government ID"
+                disabled={isSubmitting || documentExists('government_id')}
+                onRemove={() => setGovernmentIdFile(null)}
+              />
             </div>
-            <Button 
-              variant={hasDocumentOfType(docType.value) ? "outline" : "default"}
-              className="w-full mt-2"
-              onClick={() => uploadNewFile(docType.value)}
-              disabled={uploading}
-            >
-              {hasDocumentOfType(docType.value) ? "Replace" : "Upload"}
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Current Paystubs (2-3 recent)</label>
+              <FileUploader
+                id="paystubs"
+                onChange={(file) => setPaystubFiles(prev => [...prev, file])}
+                fileName={paystubFiles.length > 0 ? `${paystubFiles.length} file(s) selected` : undefined}
+                label="Upload your recent paystubs"
+                description="Last 2-3 paystubs from your employer"
+                disabled={isSubmitting}
+                onRemove={() => setPaystubFiles([])}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Employment Letter (Optional)</label>
+              <FileUploader
+                id="employment-letter"
+                onChange={(file) => setEmploymentLetterFile(file)}
+                fileName={employmentLetterFile?.name}
+                label="Upload employment verification letter"
+                description="Letter from your employer confirming employment"
+                disabled={isSubmitting}
+                onRemove={() => setEmploymentLetterFile(null)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Are you self-employed?</label>
+              <div className="flex space-x-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="self-employed"
+                    value="yes"
+                    checked={isSelfEmployed === 'yes'}
+                    onChange={() => setIsSelfEmployed('yes')}
+                    className="mr-2"
+                  />
+                  Yes
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="self-employed"
+                    value="no"
+                    checked={isSelfEmployed === 'no'}
+                    onChange={() => setIsSelfEmployed('no')}
+                    className="mr-2"
+                  />
+                  No
+                </label>
+              </div>
+            </div>
+            
+            {isSelfEmployed === 'yes' && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Notice of Assessment</label>
+                <FileUploader
+                  id="notice-of-assessment"
+                  onChange={(file) => setNoticeOfAssessmentFile(file)}
+                  fileName={noticeOfAssessmentFile?.name}
+                  label="Upload Notice of Assessment"
+                  description="Your most recent tax Notice of Assessment"
+                  disabled={isSubmitting}
+                  onRemove={() => setNoticeOfAssessmentFile(null)}
+                />
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-end pt-4">
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Uploading..." : "Save Documents"}
             </Button>
-          </Card>
-        ))}
-      </div>
-
-      <div className="mt-6">
-        <FileUploader
-          onFileSelected={handleFileChange}
-          allowedFileTypes={['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx']}
-          maxSizeMB={10}
-          label="Or drag and drop files here"
-          uploading={uploading}
-          documentTypes={documentTypes}
-        />
-      </div>
-    </div>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 };
 
-// Custom Badge component for document status
-const Badge = ({ status }: { status: "success" | "pending" | "error" }) => {
-  const colors = {
-    success: "bg-green-100 text-green-800",
-    pending: "bg-yellow-100 text-yellow-800",
-    error: "bg-red-100 text-red-800"
-  };
-  
-  return (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[status]}`}>
-      {status === "success" ? "Uploaded" : status === "pending" ? "Pending" : "Error"}
-    </span>
-  );
-};
+export default DocumentUpload;
