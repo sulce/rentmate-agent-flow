@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 const bioPromptsSchema = z.object({
   hobbies: z.string().min(1, "Please tell us about your hobbies"),
   pets: z.string().min(1, "Please tell us about your pets"),
-  occupation: z.string().min(1, "Please tell us about your occupation"),
+  // occupation: z.string().min(1, "Please tell us about your occupation"),
   lifestyle: z.string().min(1, "Please tell us about your lifestyle"),
 });
 
@@ -32,7 +32,7 @@ export default function BioPrompts({ onPromptsSubmit, initialData }: BioPromptsP
     defaultValues: {
       hobbies: initialData?.hobbies || "",
       pets: initialData?.pets || "",
-      occupation: initialData?.occupation || "",
+      // occupation: initialData?.occupation || "",
       lifestyle: initialData?.lifestyle || "",
     },
   });
@@ -76,7 +76,7 @@ export default function BioPrompts({ onPromptsSubmit, initialData }: BioPromptsP
           )}
         />
 
-        <FormField
+        {/*         <FormField
           control={form.control}
           name="occupation"
           render={({ field }) => (
@@ -92,7 +92,7 @@ export default function BioPrompts({ onPromptsSubmit, initialData }: BioPromptsP
               <FormMessage />
             </FormItem>
           )}
-        />
+        /> */}
 
         <FormField
           control={form.control}

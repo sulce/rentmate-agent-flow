@@ -141,14 +141,14 @@ export default function BioForm({ onSubmit, initialData }: BioFormProps) {
             </div>
           </div>
 
-          <div className="space-y-2">
+{/*           <div className="space-y-2">
             <Label htmlFor="bio">About You</Label>
             <Textarea
               id="bio"
               {...form.register("bio")}
               placeholder="Tell us a bit about yourself..."
             />
-          </div>
+          </div> */}
 
           <div className="space-y-2">
             <Label>Preferred Move-in Date</Label>

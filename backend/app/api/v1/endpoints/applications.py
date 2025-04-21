@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
-from typing import List, Optional, Any
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from typing import List, Optional, Any, Dict
 from datetime import datetime, timedelta
 from bson import ObjectId
 import boto3
@@ -7,6 +7,12 @@ from botocore.exceptions import ClientError
 import os
 import logging
 from pydantic import BaseModel, Field
+import tempfile
+import json
+import uuid
+import shutil
+from fastapi.responses import FileResponse
+from app.api.v1.endpoints.pdf_operations import fill_pdf_form, add_signature_to_pdf
 
 from app.models.agent import AgentInDB
 from app.models.application import ApplicationCreate, ApplicationInDB, ApplicationUpdate, ApplicationStatus, BioInfo
@@ -89,13 +95,13 @@ async def list_applications(
 @router.get("/{application_id}", response_model=ApplicationInDB)
 async def get_application(
     application_id: str,
-    current_agent: AgentInDB = Depends(get_current_agent)
+    # current_agent: AgentInDB = Depends(get_current_agent)
 ) -> Any:
     db = mongodb.get_db()
     
     application = await db.applications.find_one({
         "_id": ObjectId(application_id),
-        "agent_id": str(current_agent.id)
+        #"agent_id": str(current_agent.id)
     })
     
     if not application:
@@ -104,13 +110,32 @@ async def get_application(
             detail="Application not found"
         )
     
+      # Ensure required fields for model validation
+    if "_id" in application:
+        application["id"] = str(application["_id"])
+    
+   # Make sure bio_info has all required fields
+    if "bio_info" not in application or not application["bio_info"]:
+        application["bio_info"] = {
+            "first_name": "",
+            "last_name": "",
+            "bio": None,
+            "move_in_date": None,
+            "profile_image": None,
+            "prompts": {}
+        }
+    
+    # Make sure documents exist as an empty list
+    if "documents" not in application or not application["documents"]:
+        application["documents"] = []
+    
     return ApplicationInDB(**application)
+
 
 @router.put("/{application_id}", response_model=ApplicationInDB)
 async def update_application(
     application_id: str,
-    application_update: ApplicationUpdate,
-    current_agent: AgentInDB = Depends(get_current_agent)
+    application_update: ApplicationUpdate
 ) -> Any:
     db = mongodb.get_db()
     
@@ -118,34 +143,33 @@ async def update_application(
     update_data["updated_at"] = datetime.utcnow()
     
     result = await db.applications.update_one(
-        {"_id": ObjectId(application_id), "agent_id": str(current_agent.id)},
+        {"_id": ObjectId(application_id)},
         {"$set": update_data}
     )
-    
-    if result.modified_count == 0:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Application not found"
-        )
     
     updated_application = await db.applications.find_one({
         "_id": ObjectId(application_id)
     })
+    
+    # Add id field for Pydantic
+    updated_application["id"] = str(updated_application["_id"])
+    
     return ApplicationInDB(**updated_application)
+
 
 @router.post("/{application_id}/documents")
 async def upload_document(
     application_id: str,
     file: UploadFile = File(...),
     document_type: str = None,
-    current_agent: AgentInDB = Depends(get_current_agent)
+    # current_agent: AgentInDB = Depends(get_current_agent)
 ):
     db = mongodb.get_db()
     
     # Get the application
     application = await db.applications.find_one({
         "_id": application_id,
-        "agent_id": str(current_agent.id)
+       #  "agent_id": str(current_agent.id)
     })
     
     if not application:
@@ -214,14 +238,16 @@ async def generate_application_link(
     # Insert the link document
     await db.application_links.insert_one(link_doc)
     
-    # Generate the full URL
+    # Generate the full URL - with the correct /apply/link/ format
     frontend_url = settings.FRONTEND_URL or "http://localhost:8080"
-    application_url = f"{frontend_url}/apply/{link_id}"
+    application_url = f"{frontend_url}/apply/link/{link_id}"
     
     return {
         "link_id": link_id,
         "url": application_url
     }
+
+
 
 @router.get("/validate-link/{link_id}", response_model=dict)
 async def validate_application_link(
@@ -245,6 +271,7 @@ class StartApplicationRequest(BaseModel):
 
 @router.post("/start", response_model=ApplicationInDB)
 async def start_application(
+
     request: StartApplicationRequest
 ) -> Any:
     db = mongodb.get_db()
@@ -260,28 +287,28 @@ async def start_application(
             detail="Invalid or expired application link"
         )
     
-    # Check if agent_id exists in the link document
+        # Check if agent_id exists in the link document
     if "agent_id" not in link_doc:
-        # Log the issue
         logger.error(f"Missing agent_id in link document: {link_doc}")
-        
-        # Use a default agent ID or fail gracefully
-        agent_id = str(link_doc.get("_id", ObjectId()))  # Fallback to document ID or create new
+        agent_id = str(link_doc.get("_id", ObjectId()))
     else:
         agent_id = str(link_doc["agent_id"])
+    
+    # Create properly initialized BioInfo
+    bio_info = {
+        "first_name": "",
+        "last_name": "",
+        "bio": None,
+        "move_in_date": None,
+        "profile_image": None,
+        "prompts": {}
+    }
     
     # Create a new application with minimal required fields
     application_data = {
         "agent_id": agent_id,
-        "status": ApplicationStatus.DRAFT,
-        "bio_info": {
-            "first_name": "",
-            "last_name": "",
-            "bio": "",
-            "move_in_date": None,
-            "profile_image": None,
-            "prompts": {}
-        },
+        "status": ApplicationStatus.DRAFT.value,
+        "bio_info": bio_info,
         "documents": [],
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow()
@@ -289,5 +316,86 @@ async def start_application(
     
     result = await db.applications.insert_one(application_data)
     application_data["id"] = str(result.inserted_id)
-    
+  
     return ApplicationInDB(**application_data)
+
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+class FormData(BaseModel):
+    formData: Dict[str, Any]
+
+@router.post("/api/generate-pdf")
+async def generate_pdf(form_data: FormData):
+    # Generate unique ID for this request
+    file_id = str(uuid.uuid4())
+    output_path = os.path.join(UPLOAD_DIR, f"{file_id}.pdf")
+    
+    # Template path (replace with actual path to your OREA 410 template)
+    template_path = "templates/OREA_Form_410.pdf"
+    
+    try:
+        # Fill the PDF with form data
+        fill_pdf_form(template_path, output_path, form_data.formData)
+        
+        return {"file_id": file_id, "message": "PDF generated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/sign-pdf")
+async def sign_pdf(
+    file_id: str = Form(...),
+    signature: UploadFile = File(...),
+    page: int = Form(0),
+    x: float = Form(...),
+    y: float = Form(...)
+):
+    pdf_path = os.path.join(UPLOAD_DIR, f"{file_id}.pdf")
+    if not os.path.exists(pdf_path):
+        raise HTTPException(status_code=404, detail="PDF not found")
+    
+    # Save signature image temporarily
+    sig_path = os.path.join(UPLOAD_DIR, f"{file_id}_sig.png")
+    with open(sig_path, "wb") as f:
+        f.write(await signature.read())
+    
+    signed_pdf_path = os.path.join(UPLOAD_DIR, f"{file_id}_signed.pdf")
+    
+    try:
+        # Add signature to PDF
+        add_signature_to_pdf(pdf_path, signed_pdf_path, sig_path, page, x, y)
+        
+        # Clean up signature file
+        os.remove(sig_path)
+        
+        return {"file_id": f"{file_id}_signed", "message": "PDF signed successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/preview-pdf/{file_id}")
+async def preview_pdf(file_id: str):
+    pdf_path = os.path.join(UPLOAD_DIR, f"{file_id}.pdf")
+    
+    if not os.path.exists(pdf_path):
+        pdf_path = os.path.join(UPLOAD_DIR, f"{file_id}_signed.pdf")
+        if not os.path.exists(pdf_path):
+            raise HTTPException(status_code=404, detail="PDF not found")
+    
+    return FileResponse(pdf_path, media_type="application/pdf")
+
+@router.post("/api/upload-completed-form")
+async def upload_completed_form(file: UploadFile = File(...)):
+
+    # Generate unique ID for this upload
+    file_id = str(uuid.uuid4())
+    output_path = os.path.join(UPLOAD_DIR, f"{file_id}.pdf")
+    
+    try:
+        # Save uploaded file
+        with open(output_path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+        
+        return {"file_id": file_id, "message": "Form uploaded successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    

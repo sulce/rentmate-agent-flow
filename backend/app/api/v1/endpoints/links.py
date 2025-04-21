@@ -28,7 +28,7 @@ async def generate_link() -> Any:
     
     # Generate the full URL
     frontend_url = settings.FRONTEND_URL or "http://localhost:8080"
-    application_url = f"{frontend_url}/apply/{link_id}"
+    application_url = f"{frontend_url}/apply/link/{link_id}"
     
     return {
         "link_id": link_id,

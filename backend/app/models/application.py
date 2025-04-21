@@ -1,5 +1,5 @@
-from typing import Optional, List
-from pydantic import BaseModel
+from typing import Optional, List, Any
+from pydantic import BaseModel, Field
 from datetime import datetime
 from enum import Enum
 
@@ -11,8 +11,8 @@ class ApplicationStatus(str, Enum):
     REJECTED = "rejected"
 
 class BioInfo(BaseModel):
-    first_name: str
-    last_name: str
+    first_name: str = ""  # Provide default values for required fields
+    last_name: str = ""
     bio: Optional[str] = None
     move_in_date: Optional[datetime] = None
     profile_image: Optional[str] = None
@@ -28,25 +28,37 @@ class Document(BaseModel):
     url: str
     uploaded_at: datetime
 
+# This is a base class for shared fields
 class ApplicationBase(BaseModel):
-    agent_id: str
+    agent_id: Optional[str] = None
     status: ApplicationStatus = ApplicationStatus.DRAFT
-    bio_info: BioInfo
+    bio_info: Optional[BioInfo] = None
     orea_form: Optional[OREAForm] = None
     documents: List[Document] = []
     notes: Optional[str] = None
+    
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
 
-class ApplicationCreate(ApplicationBase):
+# This is for creating new applications
+class ApplicationCreate(BaseModel):
     link_id: Optional[str] = None
 
+# This is for applications retrieved from the database
 class ApplicationInDB(ApplicationBase):
     id: str
     created_at: datetime
     updated_at: datetime
+    
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
 
+# This is for updating applications
 class ApplicationUpdate(BaseModel):
     status: Optional[ApplicationStatus] = None
     bio_info: Optional[BioInfo] = None
     orea_form: Optional[OREAForm] = None
     documents: Optional[List[Document]] = None
-    notes: Optional[str] = None 
+    notes: Optional[str] = None

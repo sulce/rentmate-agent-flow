@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { useApplication } from "@/hooks/useApplication";
+import { apiClient } from "@/lib/api/apiClient"; // Import apiClient directly
 
 interface ApplicationLayoutProps {
   children: ReactNode;
@@ -24,21 +24,32 @@ export default function ApplicationLayout({
 }: ApplicationLayoutProps) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
-  const { applicationId } = useParams();
-  const { updateApplication } = useApplication(applicationId);
+  const { id } = useParams(); // Changed from applicationId to id
 
   const handleSaveProgress = async () => {
     try {
       setSaving(true);
-      await updateApplication({
-        last_saved_step: step,
-        last_saved_at: new Date().toISOString(),
-      });
-      toast({
-        title: "Progress Saved",
-        description: "You can continue your application later.",
-      });
+      
+      // Use apiClient directly instead of the hook
+      if (id) {
+        await apiClient.updateApplication(id, {
+          last_saved_step: step,
+          last_saved_at: new Date().toISOString(),
+        });
+        
+        toast({
+          title: "Progress Saved",
+          description: "You can continue your application later.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Application ID is missing",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
+      console.error("Save progress error:", error);
       toast({
         title: "Error",
         description: "Failed to save progress",

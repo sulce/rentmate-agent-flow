@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useApplication } from "@/hooks/useApplication";
 import BioForm from "@/components/application/BioForm";
 import DocumentUpload from "@/components/application/DocumentUpload";
+import OREAForm from "@/components/application/OREAForm"; // Import the OREA form component
 import ApplicationLayout from "@/components/application/ApplicationLayout";
 import { Application, ApplicationStatus } from "@/types/application";
 
@@ -48,8 +49,9 @@ const Apply = () => {
           application.bio_info.last_name) {
         setCurrentStep(2);
         
-        // If documents exist, move to step 3
-        if (application.documents && application.documents.length > 0) {
+        // If OREA form or documents exist, move to step 3
+        if ((application.orea_form && Object.keys(application.orea_form).length > 0) || 
+            (application.documents && application.documents.length > 0)) {
           setCurrentStep(3);
         }
       }
@@ -74,6 +76,30 @@ const Apply = () => {
         description: typeof error === 'object' && error !== null && 'message' in error 
           ? String(error.message) 
           : "Failed to save personal information",
+        variant: "destructive",
+      });
+      setCanGoNext(true);
+    }
+  };
+
+  // Handle OREA form submission
+  const handleOREASubmit = async (data: any) => {
+    try {
+      setCanGoNext(false);
+      await updateOREAForm(data);
+      setCurrentStep(3);
+      setCanGoNext(true);
+      toast({
+        title: "Success",
+        description: "OREA form saved successfully",
+      });
+    } catch (error) {
+      console.error("Failed to save OREA form:", error);
+      toast({
+        title: "Error",
+        description: typeof error === 'object' && error !== null && 'message' in error 
+          ? String(error.message) 
+          : "Failed to save OREA form",
         variant: "destructive",
       });
       setCanGoNext(true);
@@ -195,10 +221,15 @@ const Apply = () => {
         );
       case 2:
         return (
-          <DocumentUpload
-            onSubmit={handleDocumentsSubmit}
-            initialData={application?.documents}
-          />
+          <div className="space-y-8">
+            <OREAForm onSubmit={handleOREASubmit} />
+            <div className="border-t border-gray-200 pt-6">
+              <DocumentUpload
+                onSubmit={handleDocumentsSubmit}
+                initialData={application?.documents}
+              />
+            </div>
+          </div>
         );
       case 3:
         return (
@@ -229,13 +260,47 @@ const Apply = () => {
               )}
             </div>
             
+            {/* OREA Form section */}
+            <div className="border rounded-md p-4 mb-4">
+              <h3 className="text-lg font-medium mb-2">OREA Form 410</h3>
+              {application?.orea_form ? (
+                <div>
+                  {application.orea_form.uploaded_url ? (
+                    <p className="text-sm">
+                      <a 
+                        href={application.orea_form.uploaded_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        View uploaded OREA Form
+                      </a>
+                    </p>
+                  ) : (
+                    <p className="text-sm">OREA Form completed online</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No OREA form completed</p>
+              )}
+            </div>
+            
             <div className="border rounded-md p-4 mb-4">
               <h3 className="text-lg font-medium mb-2">Documents</h3>
               {application?.documents && application.documents.length > 0 ? (
                 <ul className="list-disc pl-5">
                   {application.documents.map((doc: any, index: number) => (
                     <li key={index} className="text-sm">
-                      {doc.document_type || 'Document'}: {doc.document_url ? 'Uploaded' : 'Not uploaded'}
+                      {doc.type || 'Document'}: {doc.url ? (
+                        <a 
+                          href={doc.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          View document
+                        </a>
+                      ) : 'No URL available'}
                     </li>
                   ))}
                 </ul>
